@@ -1,0 +1,10 @@
+*.ps1
+commit_messages.txt
+.vscode
+GearEquipperEqManager
+specs.md
+changelog.txt
+AdiBags
+AdiBags_Config
+Baganator
+feature_gap_analysis.md
