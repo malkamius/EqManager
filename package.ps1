@@ -75,7 +75,7 @@ New-Item -ItemType Directory -Path $tempStaging | Out-Null
 $stagingAddon = Join-Path $tempStaging $addonName
 Copy-Item -Path $addonSource -Destination $stagingAddon -Recurse -Force
 
-Compress-Archive -Path $stagingAddon -DestinationPath $zipPath -CompressionLevel Fastest -Force
+Compress-Archive -Path "$stagingAddon\*" -DestinationPath $zipPath -CompressionLevel Fastest -Force
 
 Remove-Item $tempStaging -Recurse -Force
 

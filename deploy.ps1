@@ -65,10 +65,15 @@ Write-Host "Deploying addon '$addonName' to: $TargetDir" -ForegroundColor Cyan
 if (!(Test-Path $TargetDir)) {
     Write-Host "Creating target directory..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+} else {
+    # CLEANUP: Remove everything in the target directory before deploying
+    Write-Host "Cleaning target directory: $TargetDir" -ForegroundColor Yellow
+    Get-ChildItem -Path $TargetDir -Recurse | Remove-Item -Force -Recurse
 }
 
 # --- Build ignore patterns from .gitignore and .curseignore ---
-$regexPatterns = @('^\.git(/|$)', '^\.gitignore$', '^\.curseignore$', '^wow_paths\.json$')
+$blacklistPatterns = @('^\.git(/|$)', '^\.gitignore$', '^\.curseignore$', '^wow_paths\.json$')
+$whitelistPatterns = @()
 
 function Add-IgnoreFile($ignorePath) {
     if (Test-Path $ignorePath) {
@@ -76,6 +81,9 @@ function Add-IgnoreFile($ignorePath) {
         $lines = Get-Content $ignorePath | Where-Object { $_ -match '\S' -and $_ -notmatch '^\s*#' }
         foreach ($line in $lines) {
             $line = $line.Trim().Replace('\', '/')
+            
+            $isWhitelist = $line.StartsWith('!')
+            if ($isWhitelist) { $line = $line.Substring(1) }
 
             $isRooted = $line.StartsWith('/')
             if ($isRooted) { $line = $line.Substring(1) }
@@ -94,7 +102,11 @@ function Add-IgnoreFile($ignorePath) {
             if ($isDir) { $regex = $regex + '(/|$)' }
             else        { $regex = $regex + '($|/)' }
 
-            $script:regexPatterns += $regex
+            if ($isWhitelist) {
+                $script:whitelistPatterns += $regex
+            } else {
+                $script:blacklistPatterns += $regex
+            }
         }
     }
 }
@@ -109,15 +121,30 @@ $filesToCopy = @()
 foreach ($file in $allFiles) {
     $relativePath = $file.FullName.Substring($SourceDir.Length).TrimStart('\', '/').Replace('\', '/')
 
-    $shouldIgnore = $false
-    foreach ($pattern in $regexPatterns) {
+    # 1. Check if it's explicitly Whitelisted (kept)
+    $isWhitelisted = $false
+    foreach ($pattern in $whitelistPatterns) {
         if ($relativePath -match $pattern) {
-            $shouldIgnore = $true
+            $isWhitelisted = $true
             break
         }
     }
 
-    if (-not $shouldIgnore) {
+    if ($isWhitelisted) {
+        $filesToCopy += $relativePath
+        continue
+    }
+
+    # 2. Check if it's Blacklisted (ignored)
+    $isBlacklisted = $false
+    foreach ($pattern in $blacklistPatterns) {
+        if ($relativePath -match $pattern) {
+            $isBlacklisted = $true
+            break
+        }
+    }
+
+    if (-not $isBlacklisted) {
         $filesToCopy += $relativePath
     }
 }

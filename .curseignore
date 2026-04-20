@@ -20,8 +20,8 @@ NEXT_CHANGELOG.md
 changelog.txt
 
 # Repo-only docs
-specs.md
-feature_gap_analysis.md
+*.md
+!README.md
 
 # Legacy folders
 GearEquipperEqManager/

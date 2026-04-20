@@ -90,54 +90,24 @@ powershell.exe -ExecutionPolicy Bypass -File .\deploy.ps1
 If the deploy **succeeds**, confirm with the new version number (e.g., "✅ vX.Y.Z deployed to the WoW addon folder — all files are up to date and ready to zip for CurseForge.").
 If it **fails** or `deploy.ps1` is not found, report the error output and ask the user how to proceed. Do not silently skip.
 
-### Step 9: Commit, Clean Up, and Package for CurseForge
+### Step 9: Final Review and Manual Commit
 
-#### 9a — Commit the changes
-Run the git commit using the prepared `NEXT_COMMIT.txt`:
+#### 9a — Review and Commit
+Provide the user with a summary of everything prepared. Inform them that the automatic commit step has been removed to give them full control. 
 
-```powershell
-git commit -a -F NEXT_COMMIT.txt
-```
-
-- **Cwd**: the active repository root
-- **SafeToAutoRun**: `false` — request user approval.
-- **WaitMsBeforeAsync**: `10000`
-
-#### 9b — Grab the commit hash
-After a successful commit, retrieve the short hash of the new HEAD:
+Instruct the user to run the following command in their terminal when they are ready to finalize the version:
 
 ```powershell
-git rev-parse --short HEAD
+git add -A
+git commit -F NEXT_COMMIT.txt
 ```
 
-Capture the output — this is `<hash>`. The zip will be named `<AddonName>-<hash>.zip` (e.g., `EqManager-a1b2c3d.zip`). The addon name is the `.toc` basename discovered in Step 7.
+#### 9b — Post-Commit Automation
+Explain that the **`.githooks/post-commit`** hook will automatically take over as soon as they run the commit. It will:
+1.  **Deploy**: Sync the clean, versioned files to the WoW AddOns folder (cleaning up any stale files).
+2.  **Package**: Create the versioned, flat zip file (e.g., `EqManager-9b7a6f7.zip`) in the AddOns folder.
 
-#### 9c — Remove stale zips from the WoW AddOns folder
-Resolve the WoW AddOns folder the same way `deploy.ps1` does — read `wow_paths.json` in the repo root, fall back to the default Battle.net path if needed. The AddOns folder is the parent of `<TargetDir>` (i.e., `<wowAddonsPath>`). Scan it for any zip files whose name starts with `<AddonName>-` and delete them all:
-
-```powershell
-# Resolve the same path deploy.ps1 would use
-$config      = Get-Content (Join-Path $repoRoot "wow_paths.json") -Raw | ConvertFrom-Json
-$addonsDir   = $config.wowAddonPath   # already the AddOns folder
-Get-ChildItem -Path $addonsDir -Filter "$addonName-*.zip" | Remove-Item -Force
-```
-
-Report each file removed (filename only). If none are found, confirm that no stale zips were present.
-
-#### 9d — Create the versioned CurseForge zip
-Zip the deployed addon folder into the AddOns directory as `<AddonName>-<hash>.zip`. The zip must contain the addon inside a folder named `<AddonName>` — this is the structure CurseForge and players expect when extracting directly into their AddOns folder.
-
-Files excluded by `.curseignore` are already absent from the deployed folder (deploy.ps1 respects it), so `Compress-Archive` on the deployed folder produces the correct package:
-
-```powershell
-$zipPath = Join-Path $addonsDir "$addonName-$hash.zip"
-Compress-Archive -Path $TargetDir -DestinationPath $zipPath -Force
-```
-
-- **SafeToAutoRun**: `false` — request user approval before creating the zip.
-
-On success, confirm the full path of the zip (e.g., "✅ `EqManager-a1b2c3d.zip` written to the AddOns folder — upload this to CurseForge.").
-
-> **Note:** The `.githooks/post-commit` hook runs `deploy.ps1` then `package.ps1` automatically after every `git commit`, so this zip is also created without running the skill. Steps 9c–9d here serve as a fallback if the hook wasn't triggered or needs to be re-run manually.
+#### 9c — Cleanup (Optional)
+Remind the user that they can delete `NEXT_COMMIT.txt` and `NEXT_CHANGELOG.md` after the commit is successful.
 
 
