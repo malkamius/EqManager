@@ -1,73 +1,82 @@
 # package.ps1
-# Creates a versioned CurseForge zip in the WoW AddOns folder after each commit.
-# Called automatically by .githooks/post-commit. Can also be run manually.
+# Creates a versioned CurseForge zip in the WoW AddOns folder.
+# Triggered automatically by .githooks/post-commit.
 
-$SourceDir = $PSScriptRoot
+# 1. Resolve Repo Root correctly
+$RepoRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }
+$RepoRoot = (Get-Item $RepoRoot).FullName
+Write-Host "Repo Root: $RepoRoot" -ForegroundColor Cyan
 
-# --- Get addon name from .toc ---
-$tocFile = Get-ChildItem -Path $SourceDir -Filter "*.toc" -Depth 0 | Select-Object -First 1
+# 2. Find .toc to get Addon Name
+$tocFile = Get-ChildItem -Path $RepoRoot -Filter "*.toc" | Select-Object -First 1
 if (-not $tocFile) {
-    Write-Host "package.ps1: No .toc file found — skipping zip." -ForegroundColor Yellow
-    exit 0
+    Write-Host "Error: No .toc file found in $RepoRoot" -ForegroundColor Red
+    exit 1
 }
 $addonName = $tocFile.BaseName
+Write-Host "Addon Name: $addonName" -ForegroundColor Yellow
 
-# --- Get short commit hash ---
-$hash = git -C $SourceDir rev-parse --short HEAD 2>$null
-if (-not $hash) {
-    Write-Host "package.ps1: Could not read git commit hash — skipping zip." -ForegroundColor Yellow
-    exit 0
+# 3. Get Git Hash
+Push-Location $RepoRoot
+$hash = git rev-parse --short HEAD 2>$null
+Pop-Location
+if ($LASTEXITCODE -ne 0 -or -not $hash) {
+    Write-Host "Warning: Could not get git hash. ZIP will not be versioned." -ForegroundColor Yellow
+    $hash = "dev"
+} else {
+    $hash = $hash.Trim()
 }
+Write-Host "Commit Hash: $hash" -ForegroundColor Yellow
 
-# --- Resolve WoW AddOns path (mirrors deploy.ps1 logic) ---
-$defaultWowPath = "C:\Program Files (x86)\World of Warcraft\_anniversary_\Interface\AddOns"
-$wowPathsFile   = Join-Path $SourceDir "wow_paths.json"
-$wowAddonsPath  = $null
+# 4. Resolve WoW AddOns path
+$wowPathsFile = Join-Path $RepoRoot "wow_paths.json"
+$wowAddonsPath = $null
 
 if (Test-Path $wowPathsFile) {
-    try {
-        $config = Get-Content $wowPathsFile -Raw | ConvertFrom-Json
-        if ($config.wowAddonPath -and (Test-Path $config.wowAddonPath)) {
-            $wowAddonsPath = $config.wowAddonPath
-        } else {
-            Write-Host "package.ps1: Path in wow_paths.json not found, falling back to default..." -ForegroundColor Yellow
-        }
-    } catch {
-        Write-Host "package.ps1: Could not parse wow_paths.json, falling back to default..." -ForegroundColor Yellow
+    $config = Get-Content $wowPathsFile -Raw | ConvertFrom-Json
+    if ($config.wowAddonPath -and (Test-Path $config.wowAddonPath)) {
+        $wowAddonsPath = $config.wowAddonPath
     }
 }
 
 if (-not $wowAddonsPath) {
-    if (Test-Path $defaultWowPath) {
-        $wowAddonsPath = $defaultWowPath
-    } else {
-        Write-Host "package.ps1: Could not find the WoW AddOns folder." -ForegroundColor Red
-        Write-Host "  Checked wow_paths.json : $(if (Test-Path $wowPathsFile) { (Get-Content $wowPathsFile -Raw | ConvertFrom-Json).wowAddonPath } else { '(file not found)' })" -ForegroundColor Red
-        Write-Host "  Checked default path   : $defaultWowPath" -ForegroundColor Red
-        Write-Host "Fix: Edit wow_paths.json and set 'wowAddonPath' to your WoW AddOns folder." -ForegroundColor Yellow
-        exit 1
+    $defaultPath = "C:\Program Files (x86)\World of Warcraft\_anniversary_\Interface\AddOns"
+    if (Test-Path $defaultPath) {
+        $wowAddonsPath = $defaultPath
     }
 }
 
-# --- Remove stale zips ---
-$staleZips = Get-ChildItem -Path $wowAddonsPath -Filter "$addonName-*.zip" -ErrorAction SilentlyContinue
-if ($staleZips) {
-    foreach ($zip in $staleZips) {
-        Write-Host "Removing stale zip: $($zip.Name)" -ForegroundColor Yellow
-        Remove-Item $zip.FullName -Force
-    }
-} else {
-    Write-Host "No stale zips found." -ForegroundColor Gray
+if (-not $wowAddonsPath) {
+    Write-Host "Error: WoW AddOns folder not found. Check wow_paths.json." -ForegroundColor Red
+    exit 1
 }
+Write-Host "Target AddOns Folder: $wowAddonsPath" -ForegroundColor Cyan
 
-# --- Create versioned zip ---
-$addonDir = Join-Path $wowAddonsPath $addonName
-if (-not (Test-Path $addonDir)) {
-    Write-Host "package.ps1: Addon folder not found at '$addonDir'." -ForegroundColor Red
-    Write-Host "Run deploy.ps1 first to populate the WoW AddOns folder." -ForegroundColor Yellow
+# 5. Cleanup Stale Zips
+Write-Host "Cleaning up stale zips..." -ForegroundColor Gray
+Get-ChildItem -Path $wowAddonsPath -Filter "$addonName-*.zip" | Remove-Item -Force -ErrorAction SilentlyContinue
+
+# 6. Verify Deployed Folder exists
+$addonSource = Join-Path $wowAddonsPath $addonName
+if (-not (Test-Path $addonSource)) {
+    Write-Host "Error: Deployed folder '$addonSource' not found. Run deploy.ps1 first." -ForegroundColor Red
     exit 1
 }
 
+# 7. Create Zip
 $zipPath = Join-Path $wowAddonsPath "$addonName-$hash.zip"
-Compress-Archive -Path $addonDir -DestinationPath $zipPath -Force
-Write-Host "✅ $addonName-$hash.zip created in the AddOns folder." -ForegroundColor Green
+Write-Host "Creating Zip: $zipPath" -ForegroundColor Green
+
+# Stage to Temp to ensure clean structure <AddonName>/<files>
+$tempStaging = Join-Path $env:TEMP "eq_pkg_$addonName"
+if (Test-Path $tempStaging) { Remove-Item $tempStaging -Recurse -Force }
+New-Item -ItemType Directory -Path $tempStaging | Out-Null
+
+$stagingAddon = Join-Path $tempStaging $addonName
+Copy-Item -Path $addonSource -Destination $stagingAddon -Recurse -Force
+
+Compress-Archive -Path $stagingAddon -DestinationPath $zipPath -CompressionLevel Fastest -Force
+
+Remove-Item $tempStaging -Recurse -Force
+
+Write-Host "✅ Packaging Complete!" -ForegroundColor Green
