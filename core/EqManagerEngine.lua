@@ -25,6 +25,73 @@ function EqManagerEngine:Init()
 
     -- Resume any pending tasks from a previous session or reload
     C_Timer.After(1.0, function() self:ResumeSwapping() end)
+    C_Timer.After(2.0, function() self:CheckAutoDetectSets() end)
+end
+
+function EqManagerEngine:CheckAutoDetectSets()
+    local activePartials = EqManager.Data:GetActivePartialSets()
+    local changedState = false
+
+    for _, setName in ipairs(EqManager.Data:GetSetNames()) do
+        local pSet = EqManager.Data:GetSet(setName)
+        if pSet and pSet.isPartial and pSet.autoDetect then
+            local isFullyEquipped = true
+            local hasAnyItems = false
+
+            for slotId, item in pairs(pSet.slots) do
+                if item and item ~= "EMPTY" and item ~= "$NONE" then
+                    hasAnyItems = true
+                    local currentlyEquippedLink = GetInventoryItemLink("player", slotId)
+                    
+                    local isMatch = false
+                    if item == "VALUE_NONE" then
+                        if currentlyEquippedLink == nil then
+                           isMatch = true
+                        end
+                    else
+                        local targetId = EqManager.Bags:GetItemIdFromLink(item)
+                        local targetName = type(item) == "string" and item:match("%[(.-)%]") or nil
+                        
+                        local currentId = currentlyEquippedLink and EqManager.Bags:GetItemIdFromLink(currentlyEquippedLink)
+                        local currentName = currentlyEquippedLink and currentlyEquippedLink:match("%[(.-)%]")
+                        
+                        if currentId and targetId and currentId == targetId then
+                            isMatch = true
+                        elseif currentName and targetName and currentName == targetName then
+                            isMatch = true
+                        end
+                    end
+                    
+                    if not isMatch then
+                        isFullyEquipped = false
+                        break
+                    end
+                end
+            end
+
+            -- Only consider valid partial sets that actually declare items
+            if hasAnyItems then
+                local isActive = false
+                for _, a in ipairs(activePartials) do
+                    if a == setName then isActive = true; break end
+                end
+                
+                if isFullyEquipped and not isActive then
+                    EqManager.Data:AddActivePartialSet(setName)
+                    changedState = true
+                elseif not isFullyEquipped and isActive then
+                    if setName ~= EqManager.Data.db.CurrentSet then
+                        EqManager.Data:RemoveActivePartialSet(setName)
+                        changedState = true
+                    end
+                end
+            end
+        end
+    end
+
+    if changedState and EqManager.UI and EqManager.UI.frame and EqManager.UI.frame:IsVisible() then
+        EqManager.UI:RefreshSetsList()
+    end
 end
 
 function EqManagerEngine:EquipSet(setName, callback)
@@ -37,15 +104,57 @@ function EqManagerEngine:EquipSet(setName, callback)
         return false
     end
 
-    print("|cFF00FFFFEqManager|r: Equipping set " .. setName)
+    local preservedPartials = {}
+    if set.isPartial then
+        EqManager.Data:AddActivePartialSet(setName)
+    else
+        local currentPartials = EqManager.Data:GetActivePartialSets()
+        for _, pName in ipairs(currentPartials) do
+            local pSet = EqManager.Data:GetSet(pName)
+            if pSet and pSet.keepOnBaseSwap then
+                table.insert(preservedPartials, pName)
+            end
+        end
+        EqManager.Data:ClearActivePartialSets()
+        for _, pName in ipairs(preservedPartials) do
+             EqManager.Data:AddActivePartialSet(pName)
+        end
+        EqManager.Data.db.BaseFullSet = setName
+    end
+    EqManager.Data.db.CurrentSet = setName
 
-    -- Handle helm/cloak toggles
-    if set.affectsHelmet then ShowHelm(true) end
-    if set.affectsCloak then ShowCloak(true) end
+    local finalSlots = {}
+    local finalHelmValue = nil
+    local finalCloakValue = nil
+
+    for _, slotId in ipairs(self.INVSLOTS) do
+        local item = set.slots[slotId]
+        if item then finalSlots[slotId] = item end
+    end
+    if set.affectsHelmet then finalHelmValue = true end
+    if set.affectsCloak then finalCloakValue = true end
+
+    -- Overlay preserved partials if this is a base set swap
+    if not set.isPartial then
+        for _, pName in ipairs(preservedPartials) do
+            local pSet = EqManager.Data:GetSet(pName)
+            if pSet then
+                for _, slotId in ipairs(self.INVSLOTS) do
+                    local pItem = pSet.slots[slotId]
+                    if pItem then finalSlots[slotId] = pItem end
+                end
+                if pSet.affectsHelmet then finalHelmValue = true end
+                if pSet.affectsCloak then finalCloakValue = true end
+            end
+        end
+    end
+
+    if finalHelmValue ~= nil and finalHelmValue then ShowHelm(true) end
+    if finalCloakValue ~= nil and finalCloakValue then ShowCloak(true) end
 
     local itemsToSwap = {}
     for _, slotId in ipairs(self.INVSLOTS) do
-        local targetItem = set.slots[slotId]
+        local targetItem = finalSlots[slotId]
         if targetItem and targetItem ~= "$NONE" then
             local currentlyEquippedLink = GetInventoryItemLink("player", slotId)
 
@@ -71,15 +180,6 @@ function EqManagerEngine:EquipSet(setName, callback)
             end
         end
     end
-
-    -- Update internal state immediately for UI feedback
-    if set.isPartial then
-        EqManager.Data:AddActivePartialSet(setName)
-    else
-        EqManager.Data:ClearActivePartialSets()
-        EqManager.Data.db.BaseFullSet = setName
-    end
-    EqManager.Data.db.CurrentSet = setName
 
     if EqManager.UI and EqManager.UI.frame and EqManager.UI.frame:IsVisible() then
         EqManager.UI:RefreshSetsList()
@@ -228,6 +328,8 @@ end
 
 function EqManagerEngine:OnEquipmentChanged(slotId, hasItem)
     if self.isInternalSwap or (GetTime() - self.lastInternalSwapTime < 1.0) then return end
+    
+    self:CheckAutoDetectSets()
     
     local condition = EM_OPTIONS.AutoUpdateCondition or "CHARACTER"
     if condition == "DISABLED" then return end

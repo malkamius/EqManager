@@ -13,7 +13,7 @@ end
 
 function EqManagerUI:CreateMainFrame()
     local frame = CreateFrame("Frame", "EqManagerMainFrame", PaperDollFrame, "BasicFrameTemplateWithInset")
-    frame:SetSize(340, 235)
+    frame:SetSize(340, 265)
     frame:SetFrameStrata("LOW")
     frame:Hide()
     
@@ -41,7 +41,7 @@ function EqManagerUI:CreateMainFrame()
     self.currentMode = "SETS"
     local modeBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     modeBtn:SetSize(80, 22)
-    modeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -35, -2)
+    modeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -32)
     modeBtn:SetText("Events >")
     
     local setsContainer = CreateFrame("Frame", nil, frame)
@@ -71,7 +71,7 @@ function EqManagerUI:CreateMainFrame()
     
     local border = CreateFrame("Frame", nil, setsContainer, "BackdropTemplate")
     border:SetSize(307, 140)
-    border:SetPoint("TOPLEFT", 10, -30)
+    border:SetPoint("TOPLEFT", 10, -60)
     border:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -92,11 +92,19 @@ function EqManagerUI:CreateMainFrame()
 
     
     local addBtn = CreateFrame("Button", nil, setsContainer, "UIPanelButtonTemplate")
-    addBtn:SetSize(120, 22)
+    addBtn:SetSize(80, 22)
     addBtn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 10)
     addBtn:SetText("Add set...")
     addBtn:SetScript("OnClick", function()
-        EqManager.PaperDoll:PromptSaveSet() 
+        EqManager.PaperDoll:PromptSaveSet(false) 
+    end)
+
+    local addPartialBtn = CreateFrame("Button", nil, setsContainer, "UIPanelButtonTemplate")
+    addPartialBtn:SetSize(90, 22)
+    addPartialBtn:SetPoint("BOTTOMLEFT", addBtn, "BOTTOMRIGHT", 5, 0)
+    addPartialBtn:SetText("Add partial...")
+    addPartialBtn:SetScript("OnClick", function()
+        EqManager.PaperDoll:PromptSaveSet(true) 
     end)
     
     local saveBtn = CreateFrame("Button", nil, setsContainer, "UIPanelButtonTemplate")
@@ -118,6 +126,13 @@ function EqManagerUI:CreateMainFrame()
     removeBtn:SetScript("OnClick", function()
         local current = EqManager.Data.db.CurrentSet
         if current then
+            local isActive = false
+            for _, name in ipairs(EqManager.Data:GetActivePartialSets()) do
+                if name == current then isActive = true break end
+            end
+            if isActive then
+                EqManager.Engine:UnequipPartialSet(current)
+            end
             EqManager.Data:RemoveSet(current)
             EqManager.UI:RefreshSetsList()
         end
@@ -127,7 +142,7 @@ function EqManagerUI:CreateMainFrame()
 
     -- Set Settings Lower Frame
     local setSettingsFrame = CreateFrame("Frame", "EqManagerSetSettingsFrame", setsContainer, "BasicFrameTemplateWithInset")
-    setSettingsFrame:SetSize(340, 212)
+    setSettingsFrame:SetSize(340, 252)
     setSettingsFrame:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 5)
     if setSettingsFrame.CloseButton then setSettingsFrame.CloseButton:Hide() end
     setSettingsFrame:Hide()
@@ -155,8 +170,16 @@ function EqManagerUI:CreateMainFrame()
             if set then
                 set.isPartial = self:GetChecked()
                 if set.isPartial then
+                    EqManager.PaperDoll:AutoDetectPartialSlots(current)
                     EqManager.PaperDoll:ShowSlotStateBoxes()
                 else
+                    local isActive = false
+                    for _, name in ipairs(EqManager.Data:GetActivePartialSets()) do
+                        if name == current then isActive = true break end
+                    end
+                    if isActive then
+                        EqManager.Engine:UnequipPartialSet(current)
+                    end
                     EqManager.PaperDoll:HideSlotStateBoxes()
                 end
                 EqManager.UI:RefreshSetsList()
@@ -164,20 +187,70 @@ function EqManagerUI:CreateMainFrame()
         end
     end)
 
+    local cbKeepOnBaseSwap = CreateFrame("CheckButton", nil, setSettingsFrame, "ChatConfigCheckButtonTemplate")
+    cbKeepOnBaseSwap:SetPoint("TOPLEFT", 15, -65)
+    cbKeepOnBaseSwap.text = cbKeepOnBaseSwap:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    cbKeepOnBaseSwap.text:SetPoint("LEFT", cbKeepOnBaseSwap, "RIGHT", 5, 0)
+    cbKeepOnBaseSwap.text:SetText("Keep Equipped on Base Swap")
+
+    cbKeepOnBaseSwap:SetScript("OnClick", function(self)
+        local current = EqManager.Data.db.CurrentSet
+        if current then
+            local set = EqManager.Data:GetSet(current)
+            if set then
+                set.keepOnBaseSwap = self:GetChecked()
+            end
+        end
+    end)
+
+    local cbAutoDetect = CreateFrame("CheckButton", nil, setSettingsFrame, "ChatConfigCheckButtonTemplate")
+    cbAutoDetect:SetPoint("TOPLEFT", 15, -85)
+    cbAutoDetect.text = cbAutoDetect:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    cbAutoDetect.text:SetPoint("LEFT", cbAutoDetect, "RIGHT", 5, 0)
+    cbAutoDetect.text:SetText("Auto-Detect Equipped")
+
+    cbAutoDetect:SetScript("OnClick", function(self)
+        local current = EqManager.Data.db.CurrentSet
+        if current then
+            local set = EqManager.Data:GetSet(current)
+            if set then
+                set.autoDetect = self:GetChecked()
+                -- If they just toggled this on, we should trigger a detection pass immediately
+                if set.autoDetect and EqManager.Engine.CheckAutoDetectSets then
+                    EqManager.Engine:CheckAutoDetectSets()
+                end
+            end
+        end
+    end)
+
+    cbInfoPartial:HookScript("OnClick", function(self)
+        if self:GetChecked() then
+            cbKeepOnBaseSwap:Show()
+            cbKeepOnBaseSwap.text:Show()
+            cbAutoDetect:Show()
+            cbAutoDetect.text:Show()
+        else
+            cbKeepOnBaseSwap:Hide()
+            cbKeepOnBaseSwap.text:Hide()
+            cbAutoDetect:Hide()
+            cbAutoDetect.text:Hide()
+        end
+    end)
+
     -- Separator
     local line = setSettingsFrame:CreateTexture(nil, "ARTWORK")
     line:SetSize(310, 1)
-    line:SetPoint("TOPLEFT", 15, -100)
+    line:SetPoint("TOPLEFT", 15, -140)
     line:SetColorTexture(1, 1, 1, 0.2)
 
     -- Section: Global Settings
     local globalHeader = setSettingsFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    globalHeader:SetPoint("TOPLEFT", 15, -110)
+    globalHeader:SetPoint("TOPLEFT", 15, -150)
     globalHeader:SetText("GLOBAL SETTINGS")
     globalHeader:SetTextColor(0.7, 0.7, 0.7)
 
     local updateLabel = setSettingsFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    updateLabel:SetPoint("TOPLEFT", 15, -125)
+    updateLabel:SetPoint("TOPLEFT", 15, -165)
     updateLabel:SetText("Auto-update gear:")
 
     local updateDropdown = CreateFrame("Frame", "EqManagerUpdateDropdown", setSettingsFrame, "UIDropDownMenuTemplate")
@@ -186,7 +259,7 @@ function EqManagerUI:CreateMainFrame()
     self.updateDropdown = updateDropdown
 
     local delayLabel = setSettingsFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    delayLabel:SetPoint("TOPLEFT", 15, -150)
+    delayLabel:SetPoint("TOPLEFT", 15, -190)
     delayLabel:SetText("Swap delay (sec):")
 
     local delayEdit = CreateFrame("EditBox", nil, setSettingsFrame, "InputBoxTemplate")
@@ -208,7 +281,7 @@ function EqManagerUI:CreateMainFrame()
     self.delayEdit = delayEdit
     
     local cbBagDimming = CreateFrame("CheckButton", nil, setSettingsFrame, "ChatConfigCheckButtonTemplate")
-    cbBagDimming:SetPoint("TOPLEFT", 15, -175)
+    cbBagDimming:SetPoint("TOPLEFT", 15, -215)
     cbBagDimming.text = cbBagDimming:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     cbBagDimming.text:SetPoint("LEFT", cbBagDimming, "RIGHT", 5, 0)
     cbBagDimming.text:SetText("Enable Bag Dimming")
@@ -220,12 +293,14 @@ function EqManagerUI:CreateMainFrame()
 
     self.setSettingsFrame = setSettingsFrame
     self.cbInfoPartial = cbInfoPartial
+    self.cbKeepOnBaseSwap = cbKeepOnBaseSwap
+    self.cbAutoDetect = cbAutoDetect
     self.setHeader = setHeader
     
     -- === EVENTS TAB UI ===
     local evBorder = CreateFrame("Frame", nil, eventsContainer, "BackdropTemplate")
     evBorder:SetSize(307, 140)
-    evBorder:SetPoint("TOPLEFT", 10, -30)
+    evBorder:SetPoint("TOPLEFT", 10, -60)
     evBorder:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -353,7 +428,7 @@ function EqManagerUI:CreateMainFrame()
     self.actionSettingsFrame = actionSettingsFrame
     
     local disableEvtsBtn = CreateFrame("CheckButton", nil, eventsContainer, "ChatConfigCheckButtonTemplate")
-    disableEvtsBtn:SetPoint("TOPLEFT", eventsContainer, "TOPLEFT", 15, -10)
+    disableEvtsBtn:SetPoint("TOPLEFT", eventsContainer, "TOPLEFT", 15, -27)
     disableEvtsBtn.text = disableEvtsBtn:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     disableEvtsBtn.text:SetPoint("LEFT", disableEvtsBtn, "RIGHT", 5, 0)
     disableEvtsBtn.text:SetText("Disable events")
@@ -531,13 +606,27 @@ function EqManagerUI:RefreshSetsList()
         
         if set and set.isPartial then
             EqManager.PaperDoll:ShowSlotStateBoxes()
+            self.cbKeepOnBaseSwap:SetChecked(set.keepOnBaseSwap)
+            self.cbKeepOnBaseSwap:Show()
+            self.cbKeepOnBaseSwap.text:Show()
+            self.cbAutoDetect:SetChecked(set.autoDetect)
+            self.cbAutoDetect:Show()
+            self.cbAutoDetect.text:Show()
         else
             EqManager.PaperDoll:HideSlotStateBoxes()
+            self.cbKeepOnBaseSwap:Hide()
+            self.cbKeepOnBaseSwap.text:Hide()
+            self.cbAutoDetect:Hide()
+            self.cbAutoDetect.text:Hide()
         end
     else
         self.cbInfoPartial:Hide()
         self.cbInfoPartial.text:Hide()
         self.setHeader:Hide()
+        self.cbKeepOnBaseSwap:Hide()
+        self.cbKeepOnBaseSwap.text:Hide()
+        self.cbAutoDetect:Hide()
+        self.cbAutoDetect.text:Hide()
         EqManager.PaperDoll:HideSlotStateBoxes()
     end
     

@@ -151,7 +151,9 @@ function EqManagerData:SaveSet(setName, itemStrings, opts)
         slots = itemStrings,
         isPartial = opts and opts.isPartial or false,
         affectsHelmet = opts and opts.affectsHelmet or false,
-        affectsCloak = opts and opts.affectsCloak or false
+        affectsCloak = opts and opts.affectsCloak or false,
+        keepOnBaseSwap = opts and opts.keepOnBaseSwap or false,
+        autoDetect = opts and opts.autoDetect or false
     }
     if EqManager.Bags then
         EqManager.Bags:RefreshCache()

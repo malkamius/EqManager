@@ -21,10 +21,24 @@ function EqManagerPaperDoll:Init()
 
     EqManager:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
     EqManager:RegisterEvent("BAG_UPDATE")
+    EqManager:RegisterEvent("UNIT_INVENTORY_CHANGED")
+    self.updatePending = false
     EqManager:HookScript("OnEvent", function(f, event, ...)
-        if event == "PLAYER_EQUIPMENT_CHANGED" or event == "BAG_UPDATE" then
+        if event == "PLAYER_EQUIPMENT_CHANGED" or event == "BAG_UPDATE" or event == "UNIT_INVENTORY_CHANGED" then
+            if event == "UNIT_INVENTORY_CHANGED" then
+                local unit = ...
+                if unit ~= "player" then return end
+            end
             if PaperDollFrame and PaperDollFrame:IsVisible() then
-                self:UpdateHighlights()
+                if not self.updatePending then
+                    self.updatePending = true
+                    C_Timer.After(0.05, function()
+                        self.updatePending = false
+                        if PaperDollFrame and PaperDollFrame:IsVisible() then
+                            self:UpdateHighlights()
+                        end
+                    end)
+                end
             end
         end
     end)
@@ -114,7 +128,77 @@ function EqManagerPaperDoll:HideSlotStateBoxes()
     end
 end
 
-function EqManagerPaperDoll:PromptSaveSet()
+function EqManagerPaperDoll:AutoDetectPartialSlots(setName)
+    local set = EqManager.Data:GetSet(setName)
+    if not set then return end
+
+    -- 1. Determine "background" desired items (BaseFullSet + active partials excluding THIS set)
+    local backgroundItems = {}
+    
+    local baseSetName = EqManager.Data.db.BaseFullSet
+    if baseSetName and baseSetName ~= setName then
+        local bSet = EqManager.Data:GetSet(baseSetName)
+        if bSet then
+            for slotId, item in pairs(bSet.slots) do
+                backgroundItems[slotId] = item
+            end
+        end
+    end
+
+    local activePartials = EqManager.Data:GetActivePartialSets()
+    for _, partialName in ipairs(activePartials) do
+        if partialName ~= setName then
+            local pSet = EqManager.Data:GetSet(partialName)
+            if pSet then
+                for slotId, item in pairs(pSet.slots) do
+                    backgroundItems[slotId] = item
+                end
+            end
+        end
+    end
+
+    -- 2. Compare currently equipped items to backgroundItems
+    local slotsToEnable = {}
+    local differenceFound = false
+
+    for _, slotData in ipairs(self.INVSLOTS) do
+        local slotId = slotData[2]
+        local equippedLink = GetInventoryItemLink("player", slotId)
+        
+        local equippedStr = equippedLink or "EMPTY"
+        local bgStr = backgroundItems[slotId] or "EMPTY"
+        
+        local equippedId = equippedStr:match("item:(%d+)")
+        local bgId = bgStr:match("item:(%d+)")
+
+        local equippedName = equippedStr:match("%[(.-)%]")
+        local bgName = bgStr:match("%[(.-)%]")
+
+        local isMatch = false
+        if equippedStr == bgStr then 
+            isMatch = true
+        elseif equippedId and bgId and equippedId == bgId then
+            isMatch = true
+        elseif equippedName and bgName and equippedName == bgName then
+            isMatch = true
+        end
+
+        if not isMatch then
+            slotsToEnable[slotId] = equippedStr
+            differenceFound = true
+        end
+    end
+
+    -- 3. Update set.slots based on the differences found
+    set.slots = {}
+    if differenceFound then
+        for slotId, itemStr in pairs(slotsToEnable) do
+            set.slots[slotId] = itemStr
+        end
+    end
+end
+
+function EqManagerPaperDoll:PromptSaveSet(isPartial)
     if not StaticPopupDialogs["EQMANAGER_SAVESET"] then
         StaticPopupDialogs["EQMANAGER_SAVESET"] = {
             text = "Enter a name for the new set:",
@@ -125,7 +209,7 @@ function EqManagerPaperDoll:PromptSaveSet()
                 local editBox = dialog.editBox or _G[dialog:GetName().."EditBox"]
                 local text = editBox and editBox:GetText()
                 if text and text ~= "" then
-                    self:SaveCurrentEquipmentAsSet(text)
+                    self:SaveCurrentEquipmentAsSet(text, false)
                 end
             end,
             timeout = 0,
@@ -134,35 +218,73 @@ function EqManagerPaperDoll:PromptSaveSet()
             preferredIndex = 3
         }
     end
-    StaticPopup_Show("EQMANAGER_SAVESET")
+    if not StaticPopupDialogs["EQMANAGER_SAVEPARTIALSET"] then
+        StaticPopupDialogs["EQMANAGER_SAVEPARTIALSET"] = {
+            text = "Enter a name for the new partial set:",
+            button1 = "Save",
+            button2 = "Cancel",
+            hasEditBox = true,
+            OnAccept = function(dialog)
+                local editBox = dialog.editBox or _G[dialog:GetName().."EditBox"]
+                local text = editBox and editBox:GetText()
+                if text and text ~= "" then
+                    self:SaveCurrentEquipmentAsSet(text, true)
+                end
+            end,
+            timeout = 0,
+            whileDead = true,
+            hideOnEscape = true,
+            preferredIndex = 3
+        }
+    end
+    
+    if isPartial then
+        StaticPopup_Show("EQMANAGER_SAVEPARTIALSET")
+    else
+        StaticPopup_Show("EQMANAGER_SAVESET")
+    end
 end
 
-function EqManagerPaperDoll:SaveCurrentEquipmentAsSet(name)
+function EqManagerPaperDoll:SaveCurrentEquipmentAsSet(name, forcePartial)
     local slotsCount = 19
     local items = {}
     
     local existingSet = EqManager.Data:GetSet(name)
-    local partialState = existingSet and existingSet.isPartial or false
+    local isNewForcedPartial = forcePartial and not existingSet
+    local partialState = forcePartial or (existingSet and existingSet.isPartial) or false
+    local keepState = existingSet and existingSet.keepOnBaseSwap or false
+    local autoDetectState = existingSet and existingSet.autoDetect or false
     
-    for i=1, slotsCount do
-        local shouldSave = true
-        if partialState then
-            for _, cb in ipairs(self.slotBoxes) do
-                if cb.slotId == i and not cb:GetChecked() then
-                    shouldSave = false
-                    break
+    if isNewForcedPartial then
+        autoDetectState = true
+    end
+    
+    if not isNewForcedPartial then
+        for i=1, slotsCount do
+            local shouldSave = true
+            if partialState then
+                for _, cb in ipairs(self.slotBoxes) do
+                    if cb.slotId == i and not cb:GetChecked() then
+                        shouldSave = false
+                        break
+                    end
                 end
             end
-        end
-        
-        if shouldSave then
-            local link = GetInventoryItemLink("player", i)
-            items[i] = link or "EMPTY"
+            
+            if shouldSave then
+                local link = GetInventoryItemLink("player", i)
+                items[i] = link or "EMPTY"
+            end
         end
     end
     
-    EqManager.Data:SaveSet(name, items, { isPartial = partialState })
+    EqManager.Data:SaveSet(name, items, { isPartial = partialState, keepOnBaseSwap = keepState, autoDetect = autoDetectState })
     EqManager.Data.db.CurrentSet = name
+    
+    if isNewForcedPartial then
+        self:AutoDetectPartialSlots(name)
+        EqManager.Data:AddActivePartialSet(name)
+    end
     
     print("|cFF00FFFFEqManager|r: Saved set " .. name)
     if EqManager.UI and EqManager.UI.frame and EqManager.UI.frame:IsVisible() then
