@@ -1,11 +1,10 @@
-*.ps1
-commit_messages.txt
-.vscode
-GearEquipperEqManager
-specs.md
-changelog.txt
+NEXT_COMMIT.txt
+NEXT_CHANGELOG.md
 AdiBags
 AdiBags_Config
 Baganator
+GearEquipperEqManager
+specs.md
+changelog.txt
 feature_gap_analysis.md
-NEXT_COMMIT.txt
+wow_paths.json
