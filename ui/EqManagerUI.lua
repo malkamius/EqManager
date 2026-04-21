@@ -291,6 +291,17 @@ function EqManagerUI:CreateMainFrame()
     end)
     self.cbBagDimming = cbBagDimming
 
+    local cbShowTooltips = CreateFrame("CheckButton", nil, setSettingsFrame, "ChatConfigCheckButtonTemplate")
+    cbShowTooltips:SetPoint("LEFT", cbBagDimming.text, "RIGHT", 10, 0)
+    cbShowTooltips.text = cbShowTooltips:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    cbShowTooltips.text:SetPoint("LEFT", cbShowTooltips, "RIGHT", 5, 0)
+    cbShowTooltips.text:SetText("Show Tooltips")
+
+    cbShowTooltips:SetScript("OnClick", function(self)
+        EM_OPTIONS.ShowTooltips = self:GetChecked()
+    end)
+    self.cbShowTooltips = cbShowTooltips
+
     self.setSettingsFrame = setSettingsFrame
     self.cbInfoPartial = cbInfoPartial
     self.cbKeepOnBaseSwap = cbKeepOnBaseSwap
@@ -663,6 +674,7 @@ function EqManagerUI:RefreshSetsList()
         end
     end)
     self.cbBagDimming:SetChecked(EM_OPTIONS.EnableBagDimming)
+    self.cbShowTooltips:SetChecked(EM_OPTIONS.ShowTooltips)
     self.setSettingsFrame:Show()
 end
 

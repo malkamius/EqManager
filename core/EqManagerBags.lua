@@ -26,12 +26,28 @@ function EqManagerBags:RefreshCache()
     
     for setName, setData in pairs(sets) do
         if setData.slots then
+            -- Pre-calculate display name with partial indicator
+            local displayName = setData.isPartial and (setName .. " (P)") or setName
+            
             for slotId, itemString in pairs(setData.slots) do
                 if itemString and itemString ~= "EMPTY" and itemString ~= "VALUE_NONE" and itemString ~= "$NONE" then
                     -- Extract ItemID from itemString if it's a link or just use as is
                     local itemId = self:GetItemIdFromLink(itemString)
                     if itemId then
-                        self.setItems[itemId] = true
+                        self.setItems[itemId] = self.setItems[itemId] or {}
+                        
+                        -- Avoid duplicates if the same item is in multiple slots in one set
+                        local found = false
+                        for _, existing in ipairs(self.setItems[itemId]) do
+                            if existing == displayName then
+                                found = true
+                                break
+                            end
+                        end
+                        
+                        if not found then
+                            table.insert(self.setItems[itemId], displayName)
+                        end
                     end
                 end
             end
@@ -59,7 +75,13 @@ function EqManagerBags:IsItemInAnySet(itemLink)
     local itemId = self:GetItemIdFromLink(itemLink)
     if not itemId then return false end
     
-    return self.setItems[itemId] == true
+    return self.setItems[itemId] ~= nil
+end
+
+function EqManagerBags:GetSetsForItem(itemLink)
+    local itemId = self:GetItemIdFromLink(itemLink)
+    if not itemId then return nil end
+    return self.setItems[itemId]
 end
 
 function EqManagerBags:GetItemLocationForSlot(targetLink, slotId)

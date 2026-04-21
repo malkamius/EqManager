@@ -28,6 +28,7 @@ Trigger automatic set swaps based on:
 - **Quick Slots**: Alt/Shift-click popups on equipment slots for lightning-fast manual swaps.
 - **Visual Feedback**: Highlights missing items (red) and equipped items (green) with clear visual cues.
 - **Bag Dimming**: Dims items in your bags that aren't part of any saved set (Supports Baganator).
+- **Item Set Tooltips**: Displays set membership information directly on item tooltips with support for partial set indicators and membership status.
 - **Responsive UI**: Automatically detects and repositions its panes if other UI addons (like Extended Character Stats) are present.
 
 ### Compatibility

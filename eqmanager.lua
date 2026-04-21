@@ -38,6 +38,7 @@ local function OnEvent(self, event, arg1)
         EM_OPTIONS.ShowUI = (EM_OPTIONS.ShowUI == nil) and false or EM_OPTIONS.ShowUI
         EM_OPTIONS.SwapDelay = (EM_OPTIONS.SwapDelay == nil) and 0.1 or EM_OPTIONS.SwapDelay
         EM_OPTIONS.EnableBagDimming = (EM_OPTIONS.EnableBagDimming == nil) and false or EM_OPTIONS.EnableBagDimming
+        EM_OPTIONS.ShowTooltips = (EM_OPTIONS.ShowTooltips == nil) and true or EM_OPTIONS.ShowTooltips
         EM_AUX = EM_AUX or {}
 
         -- Call internal Init on Data first

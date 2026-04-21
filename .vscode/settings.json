@@ -218,7 +218,8 @@
         "ACCOUNT_TRANSFERRABLE_CURRENCY",
         "CURRENCY_TRANSFER_DISABLED_NO_VALID_SOURCES",
         "GameTooltip_AddBlankLineToTooltip",
-        "BaseScrollBoxEvents"
+        "BaseScrollBoxEvents",
+        "ItemRefTooltip"
     ],
     "Lua.type.weakUnionCheck": true
 }

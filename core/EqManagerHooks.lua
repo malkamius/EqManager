@@ -10,6 +10,7 @@ function EqManagerHooks:Init()
     self:InstallBlizzardHooks()
     self:InstallAdiBagsHooks()
     self:InstallBaganatorHooks()
+    self:InstallTooltipHooks()
 end
 
 function EqManagerHooks:RefreshBags()
@@ -231,5 +232,31 @@ function EqManagerHooks:InstallBaganatorHooks()
     end
     if BaganatorRetailLiveGuildItemButtonMixin then
         hooksecurefunc(BaganatorRetailLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
+    end
+end
+
+function EqManagerHooks:InstallTooltipHooks()
+    local function onTooltipSetItem(tooltip)
+        if not EM_OPTIONS or not EM_OPTIONS.ShowTooltips then return end
+        
+        local name, link = tooltip:GetItem()
+        if not link then return end
+        
+        local sets = EqManager.Bags:GetSetsForItem(link)
+        if sets and #sets > 0 then
+            tooltip:AddLine(" ")
+            tooltip:AddLine("|cFF00FFFFEqManager|r: Included in |cFFFFD700" .. table.concat(sets, ", ") .. "|r")
+        else
+            tooltip:AddLine(" ")
+            tooltip:AddLine("|cFF00FFFFEqManager|r: |cFFFF0000Not in any sets|r")
+        end
+        -- No need to call Show() as the engine handles it after the script runs
+    end
+
+    if GameTooltip then
+        GameTooltip:HookScript("OnTooltipSetItem", onTooltipSetItem)
+    end
+    if ItemRefTooltip then
+        ItemRefTooltip:HookScript("OnTooltipSetItem", onTooltipSetItem)
     end
 end
