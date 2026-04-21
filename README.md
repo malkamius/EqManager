@@ -10,6 +10,8 @@ EqManager is inspired by the **GearQuipper** addon. While it draws inspiration f
 - **Full & Partial Sets**: Save complete equipment sets or subset elements for specific needs.
 - **Reconstruction System**: Intelligent tracking of a Base Set and multiple Active Partial Sets, automatically handling un-equips to maintain your desired appearance and stats.
 - **Base Set Protection**: Ensures fundamental gear states are maintained by preventing base sets from being unequipped.
+- **Custom Sorting**: Reorder your equipment sets manually using dedicated Up/Down buttons in the main UI.
+
 
 ### Equipment Queue & State Machine
 - **Safety First**: Queues equipment changes during combat, casting, or shapeshifting, executing them safely as soon as the lockdown ends.
@@ -31,7 +33,9 @@ Trigger automatic set swaps based on:
 - **Bag Dimming**: Dims items in your bags that aren't part of any saved set (Supports Baganator).
 - **Item Set Tooltips**: Displays set membership information directly on item tooltips with support for partial set indicators and membership status.
 - **Event Provenance**: Detailed chat logging that identifies the specific event or manual action that triggered an equipment change.
+- **Intelligent Selection**: Clicking a set name automatically selects it for editing and ensures it is equipped so you can immediately configure its slots.
 - **Responsive UI**: Automatically detects and repositions its panes if other UI addons (like Extended Character Stats) are present.
+
 
 ### Compatibility
 - Specifically tailored and tested for **Burning Crusade (TBC) Classic**.

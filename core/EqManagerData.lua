@@ -27,6 +27,7 @@ function EqManagerData:Init()
     charStore.CurrentSet = charStore.CurrentSet or nil
     charStore.BaseFullSet = charStore.BaseFullSet or nil
     charStore.ActivePartialSets = charStore.ActivePartialSets or {}
+    charStore.SetOrder = charStore.SetOrder or nil
     charStore.PendingTasks = charStore.PendingTasks or {}
     charStore.LastAFKState = charStore.LastAFKState or false
 end
@@ -134,12 +135,67 @@ end
 
 -- Sets Data API
 function EqManagerData:GetSetNames()
-    local names = {}
-    for name, _ in pairs(self.db.Sets) do
-        table.insert(names, name)
+    if not self.db.SetOrder then
+        -- Initial population: Full sets first (alphabetical), then Partial sets (alphabetical)
+        local full = {}
+        local partial = {}
+        for name, data in pairs(self.db.Sets) do
+            if data.isPartial then
+                table.insert(partial, name)
+            else
+                table.insert(full, name)
+            end
+        end
+        table.sort(full)
+        table.sort(partial)
+        
+        self.db.SetOrder = {}
+        for _, name in ipairs(full) do table.insert(self.db.SetOrder, name) end
+        for _, name in ipairs(partial) do table.insert(self.db.SetOrder, name) end
     end
-    table.sort(names)
-    return names
+    
+    -- Sync check
+    local order = self.db.SetOrder
+    local exists = {}
+    local synced = {}
+    for _, name in ipairs(order) do
+        if self.db.Sets[name] then
+            table.insert(synced, name)
+            exists[name] = true
+        end
+    end
+    
+    local missing = {}
+    for name, _ in pairs(self.db.Sets) do
+        if not exists[name] then
+            table.insert(missing, name)
+        end
+    end
+    if #missing > 0 then
+        table.sort(missing)
+        for _, name in ipairs(missing) do
+            table.insert(synced, name)
+        end
+    end
+    self.db.SetOrder = synced
+    return self.db.SetOrder
+end
+
+function EqManagerData:MoveSet(setName, direction)
+    local order = self:GetSetNames() -- ensures synced
+    local idx
+    for i, name in ipairs(order) do
+        if name == setName then
+            idx = i
+            break
+        end
+    end
+    if not idx then return end
+    
+    local targetIdx = idx + direction
+    if targetIdx < 1 or targetIdx > #order then return end
+    
+    order[idx], order[targetIdx] = order[targetIdx], order[idx]
 end
 
 function EqManagerData:GetSet(setName)

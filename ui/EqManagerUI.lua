@@ -70,7 +70,7 @@ function EqManagerUI:CreateMainFrame()
     end)
     
     local border = CreateFrame("Frame", nil, setsContainer, "BackdropTemplate")
-    border:SetSize(307, 140)
+    border:SetSize(297, 140)
     border:SetPoint("TOPLEFT", 10, -60)
     border:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -85,7 +85,7 @@ function EqManagerUI:CreateMainFrame()
     self.scrollFrame:SetPoint("BOTTOMRIGHT", -25, 5)
 
     self.content = CreateFrame("Frame", nil, self.scrollFrame)
-    self.content:SetSize(270, 10)
+    self.content:SetSize(260, 10)
     self.scrollFrame:SetScrollChild(self.content)
     
     -- Removed the legacy floating infoFrame -> moved to event/settings frame below
@@ -106,6 +106,32 @@ function EqManagerUI:CreateMainFrame()
     addPartialBtn:SetScript("OnClick", function()
         EqManager.PaperDoll:PromptSaveSet(true) 
     end)
+
+    local upBtn = CreateFrame("Button", nil, setsContainer, "UIPanelButtonTemplate")
+    upBtn:SetSize(22, 22)
+    upBtn:SetPoint("TOPLEFT", border, "TOPRIGHT", 5, -30)
+    upBtn:SetText("^")
+    upBtn:SetScript("OnClick", function()
+        local current = EqManager.Data.db.CurrentSet
+        if current then
+            EqManager.Data:MoveSet(current, -1)
+            EqManager.UI:RefreshSetsList()
+        end
+    end)
+    self.upBtn = upBtn
+
+    local downBtn = CreateFrame("Button", nil, setsContainer, "UIPanelButtonTemplate")
+    downBtn:SetSize(22, 22)
+    downBtn:SetPoint("TOPLEFT", upBtn, "BOTTOMLEFT", 0, -2)
+    downBtn:SetText("v")
+    downBtn:SetScript("OnClick", function()
+        local current = EqManager.Data.db.CurrentSet
+        if current then
+            EqManager.Data:MoveSet(current, 1)
+            EqManager.UI:RefreshSetsList()
+        end
+    end)
+    self.downBtn = downBtn
     
     local saveBtn = CreateFrame("Button", nil, setsContainer, "UIPanelButtonTemplate")
     saveBtn:SetSize(90, 22)
@@ -310,7 +336,7 @@ function EqManagerUI:CreateMainFrame()
     
     -- === EVENTS TAB UI ===
     local evBorder = CreateFrame("Frame", nil, eventsContainer, "BackdropTemplate")
-    evBorder:SetSize(307, 140)
+    evBorder:SetSize(297, 140)
     evBorder:SetPoint("TOPLEFT", 10, -60)
     evBorder:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -325,7 +351,7 @@ function EqManagerUI:CreateMainFrame()
     self.evScrollFrame:SetPoint("BOTTOMRIGHT", -25, 5)
 
     self.evContent = CreateFrame("Frame", nil, self.evScrollFrame)
-    self.evContent:SetSize(270, 10)
+    self.evContent:SetSize(260, 10)
     self.evScrollFrame:SetScrollChild(self.evContent)
     
     self.masterEventEntries = {}
@@ -646,6 +672,28 @@ function EqManagerUI:RefreshSetsList()
         self.cbAutoDetect.text:Hide()
         EqManager.PaperDoll:HideSlotStateBoxes()
     end
+
+    -- Update reorder buttons
+    local current = EqManager.Data.db.CurrentSet
+    local idx
+    if current then
+        for i, name in ipairs(setNames) do
+            if name == current then
+                idx = i
+                break
+            end
+        end
+    end
+
+    if idx then
+        self.upBtn:Enable()
+        self.downBtn:Enable()
+        if idx == 1 then self.upBtn:Disable() end
+        if idx == #setNames then self.downBtn:Disable() end
+    else
+        self.upBtn:Disable()
+        self.downBtn:Disable()
+    end
     
     local updateConditions = {
         { text = "Disabled", value = "DISABLED" },
@@ -884,6 +932,24 @@ function EqManagerUI:CreateSetEntry(index)
     
     entry:SetScript("OnClick", function(self)
         EqManager.Data.db.CurrentSet = self.setName
+        
+        -- Auto-activate if not active
+        local isActive = false
+        if EqManager.Data.db.BaseFullSet == self.setName then
+            isActive = true
+        else
+            for _, pName in ipairs(EqManager.Data:GetActivePartialSets()) do
+                if pName == self.setName then
+                    isActive = true
+                    break
+                end
+            end
+        end
+        
+        if not isActive then
+            EqManager.Queue:QueueSet(self.setName, "Manual")
+        end
+        
         EqManager.UI:RefreshSetsList()
     end)
     
@@ -898,6 +964,7 @@ function EqManagerUI:CreateSetEntry(index)
     
     local cbSelection = CreateFrame("CheckButton", nil, entry, "ChatConfigCheckButtonTemplate")
     cbSelection:SetPoint("LEFT", 0, 0)
+    cbSelection:SetHitRectInsets(0, 0, 0, 0)
     cbSelection:SetScript("OnClick", function(self)
         EqManager.Data.db.CurrentSet = entry.setName
         
