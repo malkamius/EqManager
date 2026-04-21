@@ -174,6 +174,7 @@ function EqManagerEventDialog:Init()
         local info = UIDropDownMenu_CreateInfo()
         local sets = EqManager.Data:GetSetNames()
         for _, setName in ipairs(sets) do
+            local setObj = EqManager.Data:GetSet(setName)
             info.text = setName
             info.value = setName
             info.checked = function() return params.selectedTarget == setName end
@@ -184,17 +185,19 @@ function EqManagerEventDialog:Init()
             end
             UIDropDownMenu_AddButton(info)
             
-            -- Add unequip target capability
-            local unequipName = "[-] " .. setName
-            info.text = unequipName
-            info.value = unequipName
-            info.checked = function() return params.selectedTarget == unequipName end
-            info.func = function(self)
-                UIDropDownMenu_SetSelectedID(targetDropdown, self:GetID())
-                UIDropDownMenu_SetText(targetDropdown, unequipName)
-                params.selectedTarget = unequipName
+            -- Add unequip target capability only for partial sets
+            if setObj and setObj.isPartial then
+                local unequipName = "[-] " .. setName
+                info.text = unequipName
+                info.value = unequipName
+                info.checked = function() return params.selectedTarget == unequipName end
+                info.func = function(self)
+                    UIDropDownMenu_SetSelectedID(targetDropdown, self:GetID())
+                    UIDropDownMenu_SetText(targetDropdown, unequipName)
+                    params.selectedTarget = unequipName
+                end
+                UIDropDownMenu_AddButton(info)
             end
-            UIDropDownMenu_AddButton(info)
         end
     end)
     

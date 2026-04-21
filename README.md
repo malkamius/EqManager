@@ -9,6 +9,7 @@ EqManager is inspired by the **GearQuipper** addon. While it draws inspiration f
 ### Set Management
 - **Full & Partial Sets**: Save complete equipment sets or subset elements for specific needs.
 - **Reconstruction System**: Intelligent tracking of a Base Set and multiple Active Partial Sets, automatically handling un-equips to maintain your desired appearance and stats.
+- **Base Set Protection**: Ensures fundamental gear states are maintained by preventing base sets from being unequipped.
 
 ### Equipment Queue & State Machine
 - **Safety First**: Queues equipment changes during combat, casting, or shapeshifting, executing them safely as soon as the lockdown ends.
@@ -29,6 +30,7 @@ Trigger automatic set swaps based on:
 - **Visual Feedback**: Highlights missing items (red) and equipped items (green) with clear visual cues.
 - **Bag Dimming**: Dims items in your bags that aren't part of any saved set (Supports Baganator).
 - **Item Set Tooltips**: Displays set membership information directly on item tooltips with support for partial set indicators and membership status.
+- **Event Provenance**: Detailed chat logging that identifies the specific event or manual action that triggered an equipment change.
 - **Responsive UI**: Automatically detects and repositions its panes if other UI addons (like Extended Character Stats) are present.
 
 ### Compatibility

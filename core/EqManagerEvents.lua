@@ -24,7 +24,7 @@ function EqManagerEvents:Init()
     self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
     self:RegisterEvent("PLAYER_FLAGS_CHANGED")
     
-    self.lastMountState = IsMounted()
+    self.lastMountState = IsMounted() and not UnitOnTaxi("player")
     self.lastPvPState = UnitIsPVP("player")
     self.lastAFKState = EqManager.Data.db.LastAFKState or false
 
@@ -46,6 +46,37 @@ end
 function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
     if EM_OPTIONS.DisableEvents then return end
     
+    local eventSources = {
+        COMBAT_ENTER = "Entering Combat",
+        COMBAT_LEAVE = "Leaving Combat",
+        ZONE_ENTER = "Zone Change",
+        SHAPESHIFT = "Shapeshift",
+        SHAPESHIFT_OUT = "Canceled Shapeshift",
+        STEALTH_ENTER = "Entering Stealth",
+        STEALTH_LEAVE = "Leaving Stealth",
+        MOUNT = "Mounting",
+        DISMOUNT = "Dismounting",
+        SPEC_CHANGED = "Spec Change",
+        PVP_ENTER = "Entering PvP",
+        PVP_LEAVE = "Leaving PvP",
+        AFK_ENTER = "Entering AFK",
+        AFK_LEAVE = "Leaving AFK",
+    }
+
+    local sourceStr = eventSources[eventType] or eventType
+    if eventSubType and eventSubType ~= "" then
+        -- Avoid redundant info like "Zone Change (Orgrimmar)" if we can just say "Entering Orgrimmar"
+        if eventType == "ZONE_ENTER" then
+            sourceStr = "Entering " .. eventSubType
+        elseif eventType == "SHAPESHIFT" then
+            sourceStr = "Shapeshift: " .. eventSubType
+        elseif eventType == "SPEC_CHANGED" then
+            sourceStr = "Spec Change: " .. eventSubType
+        else
+            sourceStr = sourceStr .. " (" .. eventSubType .. ")"
+        end
+    end
+
     local events = EqManager.Data:GetEvents()
     for _, ev in ipairs(events) do
         if ev.type == eventType then
@@ -64,7 +95,7 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
                     if action.pvp == "DISABLED" and isPvP then pvpMatch = false end
                     
                     if pvpMatch then
-                        EqManager.Queue:QueueSet(action.setName)
+                        EqManager.Queue:QueueSet(action.setName, sourceStr)
                     end
                 end
             end
@@ -112,7 +143,7 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
     elseif event == "UNIT_AURA" or event == "PLAYER_MOUNT_DISPLAY_CHANGED" then
         if event == "UNIT_AURA" and arg1 ~= "player" then return end
         
-        local isMounted = IsMounted()
+        local isMounted = IsMounted() and not UnitOnTaxi("player")
         if isMounted ~= self.lastMountState then
             self.lastMountState = isMounted
             if isMounted then

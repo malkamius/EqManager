@@ -131,7 +131,7 @@ function EqManagerUI:CreateMainFrame()
                 if name == current then isActive = true break end
             end
             if isActive then
-                EqManager.Engine:UnequipPartialSet(current)
+                EqManager.Engine:UnequipPartialSet(current, nil, "Manual")
             end
             EqManager.Data:RemoveSet(current)
             EqManager.UI:RefreshSetsList()
@@ -178,7 +178,7 @@ function EqManagerUI:CreateMainFrame()
                         if name == current then isActive = true break end
                     end
                     if isActive then
-                        EqManager.Engine:UnequipPartialSet(current)
+                        EqManager.Engine:UnequipPartialSet(current, nil, "Manual")
                     end
                     EqManager.PaperDoll:HideSlotStateBoxes()
                 end
@@ -593,6 +593,12 @@ function EqManagerUI:RefreshSetsList()
             end
             entry.cbSelection:SetChecked(isChecked)
             
+            if EqManager.Data.db.BaseFullSet == setName then
+                entry.cbSelection:Disable()
+            else
+                entry.cbSelection:Enable()
+            end
+            
             if EqManager.Data.db.CurrentSet == setName then 
                 currentFound = true 
                 if entry.selectedTex then entry.selectedTex:Show() end
@@ -807,6 +813,7 @@ function EqManagerUI:RefreshActionDetails()
         local info = UIDropDownMenu_CreateInfo()
         local sets = EqManager.Data:GetSetNames()
         for _, name in ipairs(sets) do
+            local setObj = EqManager.Data:GetSet(name)
             info.text = name
             info.func = function()
                 EqManager.Data:UpdateEventAction(eIdx, aIdx, { setName = name })
@@ -814,13 +821,16 @@ function EqManagerUI:RefreshActionDetails()
             end
             UIDropDownMenu_AddButton(info)
             
-            local unequip = "[-] " .. name
-            info.text = unequip
-            info.func = function()
-                EqManager.Data:UpdateEventAction(eIdx, aIdx, { setName = unequip })
-                EqManager.UI:RefreshEventActionsList()
+            -- Only allow un-equipping for partial sets
+            if setObj and setObj.isPartial then
+                local unequip = "[-] " .. name
+                info.text = unequip
+                info.func = function()
+                    EqManager.Data:UpdateEventAction(eIdx, aIdx, { setName = unequip })
+                    EqManager.UI:RefreshEventActionsList()
+                end
+                UIDropDownMenu_AddButton(info)
             end
-            UIDropDownMenu_AddButton(info)
         end
     end)
     
@@ -892,11 +902,11 @@ function EqManagerUI:CreateSetEntry(index)
         EqManager.Data.db.CurrentSet = entry.setName
         
         if self:GetChecked() then
-            EqManager.Queue:QueueSet(entry.setName)
+            EqManager.Queue:QueueSet(entry.setName, "Manual")
         else
             local set = EqManager.Data:GetSet(entry.setName)
             if set and set.isPartial then
-                EqManager.Engine:UnequipPartialSet(entry.setName)
+                EqManager.Engine:UnequipPartialSet(entry.setName, nil, "Manual")
             end
         end
         

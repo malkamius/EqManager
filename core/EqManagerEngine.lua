@@ -94,7 +94,7 @@ function EqManagerEngine:CheckAutoDetectSets()
     end
 end
 
-function EqManagerEngine:EquipSet(setName, callback)
+function EqManagerEngine:EquipSet(setName, callback, source)
     self.isInternalSwap = true
     local set = EqManager.Data:GetSet(setName)
     if not set then
@@ -102,6 +102,10 @@ function EqManagerEngine:EquipSet(setName, callback)
         self.isInternalSwap = false
         if callback then callback() end
         return false
+    end
+
+    if source then
+        print("|cFF00FFFFEqManager|r: Equipping |cFFFFFF00" .. setName .. "|r (caused by: |cFF00FF00" .. source .. "|r)")
     end
 
     local preservedPartials = {}
@@ -189,7 +193,21 @@ function EqManagerEngine:EquipSet(setName, callback)
     return true
 end
 
-function EqManagerEngine:UnequipPartialSet(setName, callback)
+function EqManagerEngine:UnequipPartialSet(setName, callback, source)
+    local active = EqManager.Data:GetActivePartialSets()
+    local wasActive = false
+    for _, name in ipairs(active) do
+        if name == setName then
+            wasActive = true
+            break
+        end
+    end
+
+    if not wasActive then
+        if callback then callback() end
+        return
+    end
+
     self.isInternalSwap = true
     EqManager.Data:RemoveActivePartialSet(setName)
 
@@ -228,7 +246,11 @@ function EqManagerEngine:UnequipPartialSet(setName, callback)
         end
     end
 
-    print("|cFF00FFFFEqManager|r: Unequipping partial set |cFFFFFF00" .. setName .. "|r...")
+    local msg = "|cFF00FFFFEqManager|r: Unequipping partial set |cFFFFFF00" .. setName .. "|r"
+    if source then
+        msg = msg .. " (caused by: |cFF00FF00" .. source .. "|r)"
+    end
+    print(msg .. "...")
 
     if finalHelmValue ~= nil then ShowHelm(finalHelmValue) end
     if finalCloakValue ~= nil then ShowCloak(finalCloakValue) end

@@ -33,7 +33,7 @@ function EqManagerQueue:CanSwitch()
     return not self.inCombat and not self.isCasting
 end
 
-function EqManagerQueue:QueueSet(action)
+function EqManagerQueue:QueueSet(action, source)
     local isUnequip = string.sub(action, 1, 4) == "[-] "
     local targetSetName = isUnequip and string.sub(action, 5) or action
     local set = EqManager.Data:GetSet(targetSetName)
@@ -41,21 +41,27 @@ function EqManagerQueue:QueueSet(action)
 
     if not set then
         -- Fallback for unknown sets or raw commands
-        table.insert(self.pendingQueue, action)
+        table.insert(self.pendingQueue, { action = action, source = source })
+    elseif isUnequip and not set.isPartial then
+        -- Base Set Unequip: Prohibited
+        if EM_OPTIONS.Debug then
+            print("|cFF00FFFFEqManager DEBUG|r: Ignoring un-equip action for base set: " .. targetSetName)
+        end
+        return
     elseif not set.isPartial and not isUnequip then
         -- Full Set Equip: Supersedes all previous actions in the queue
-        self.pendingQueue = { action }
+        self.pendingQueue = { { action = action, source = source } }
     else
-        -- Partial Set or Unequip: Check for conflicts
+        -- Partial Set (Equip or Unequip): Check for conflicts
         local inverse = isUnequip and targetSetName or ("[-] " .. targetSetName)
         
-        for i, pendingAction in ipairs(self.pendingQueue) do
-            if pendingAction == inverse then
+        for i, entry in ipairs(self.pendingQueue) do
+            if entry.action == inverse then
                 -- Cancellation: Equip and Unequip nullify each other
                 table.remove(self.pendingQueue, i)
                 cancelled = true
                 break
-            elseif pendingAction == action then
+            elseif entry.action == action then
                 -- Redundancy: Duplicate action already in queue
                 cancelled = true
                 break
@@ -63,14 +69,18 @@ function EqManagerQueue:QueueSet(action)
         end
         
         if not cancelled then
-            table.insert(self.pendingQueue, action)
+            table.insert(self.pendingQueue, { action = action, source = source })
         end
     end
 
     if self:CanSwitch() then
         self:ProcessQueue()
     elseif not cancelled then
-        print("|cFF00FFFFEqManager|r: Queued action |cFFFFFF00" .. action .. "|r (locked)")
+        local msg = "|cFF00FFFFEqManager|r: Queued action |cFFFFFF00" .. action .. "|r"
+        if source then
+            msg = msg .. " (caused by: |cFF00FF00" .. source .. "|r)"
+        end
+        print(msg .. " |cFFFF0000(locked)|r")
     end
 end
 
@@ -80,7 +90,9 @@ function EqManagerQueue:ProcessQueue()
     if not self:CanSwitch() then return end
 
     self.isBusy = true
-    local action = table.remove(self.pendingQueue, 1)
+    local entry = table.remove(self.pendingQueue, 1)
+    local action = entry.action
+    local source = entry.source
 
     local onDone = function()
         self.isBusy = false
@@ -89,8 +101,8 @@ function EqManagerQueue:ProcessQueue()
 
     if string.sub(action, 1, 4) == "[-] " then
         local actualSet = string.sub(action, 5)
-        EqManager.Engine:UnequipPartialSet(actualSet, onDone)
+        EqManager.Engine:UnequipPartialSet(actualSet, onDone, source)
     else
-        EqManager.Engine:EquipSet(action, onDone)
+        EqManager.Engine:EquipSet(action, onDone, source)
     end
 end
