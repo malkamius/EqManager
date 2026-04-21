@@ -21,7 +21,7 @@ changelog.txt
 
 # Repo-only docs
 *.md
-!README.md
+!/README.md
 
 # Legacy folders
 GearEquipperEqManager/
@@ -30,3 +30,4 @@ GearEquipperEqManager/
 AdiBags/
 AdiBags_Config/
 Baganator/
+AdiBags/README.md
