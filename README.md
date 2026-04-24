@@ -10,6 +10,8 @@ EqManager is inspired by the **GearQuipper** addon. While it draws inspiration f
 - **Full & Partial Sets**: Save complete equipment sets or subset elements for specific needs.
 - **Reconstruction System**: Intelligent tracking of a Base Set and multiple Active Partial Sets, automatically handling un-equips to maintain your desired appearance and stats.
 - **Base Set Protection**: Ensures fundamental gear states are maintained by preventing base sets from being unequipped.
+- **Base Set Re-equip**: Click the base set label or checkbox to clear all partials and reset to your base gear configuration.
+- **Auto-Detect Notifications**: Chat messages alert you when a partial set is detected as equipped or unequipped.
 - **Custom Sorting**: Reorder your equipment sets manually using dedicated Up/Down buttons in the main UI.
 
 

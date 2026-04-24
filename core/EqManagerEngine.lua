@@ -37,10 +37,17 @@ function EqManagerEngine:CheckAutoDetectSets()
         if pSet and pSet.isPartial and pSet.autoDetect then
             local isFullyEquipped = true
             local hasAnyItems = false
+            local failedSlot = nil
+            local slotCount = 0
+
+            if EM_OPTIONS.Debug then
+                print("|cFF00FFFFEqManager DEBUG|r: AutoDetect checking set: |cFFFFFF00" .. setName .. "|r")
+            end
 
             for slotId, item in pairs(pSet.slots) do
                 if item and item ~= "EMPTY" and item ~= "$NONE" then
                     hasAnyItems = true
+                    slotCount = slotCount + 1
                     local currentlyEquippedLink = GetInventoryItemLink("player", slotId)
                     
                     local isMatch = false
@@ -60,13 +67,29 @@ function EqManagerEngine:CheckAutoDetectSets()
                         elseif currentName and targetName and currentName == targetName then
                             isMatch = true
                         end
+
+                        if EM_OPTIONS.Debug then
+                            print(string.format("|cFF00FFFFEqManager DEBUG|r:   Slot %d: target=%s (id=%s) vs equipped=%s (id=%s) -> %s",
+                                slotId,
+                                tostring(targetName or item),
+                                tostring(targetId),
+                                tostring(currentName or currentlyEquippedLink or "EMPTY"),
+                                tostring(currentId),
+                                isMatch and "|cFF00FF00MATCH|r" or "|cFFFF0000MISMATCH|r"))
+                        end
                     end
                     
                     if not isMatch then
                         isFullyEquipped = false
+                        failedSlot = slotId
                         break
                     end
                 end
+            end
+
+            if EM_OPTIONS.Debug then
+                print(string.format("|cFF00FFFFEqManager DEBUG|r:   Result: hasItems=%s, slots=%d, fullyEquipped=%s, failedSlot=%s",
+                    tostring(hasAnyItems), slotCount, tostring(isFullyEquipped), tostring(failedSlot)))
             end
 
             -- Only consider valid partial sets that actually declare items
@@ -79,10 +102,18 @@ function EqManagerEngine:CheckAutoDetectSets()
                 if isFullyEquipped and not isActive then
                     EqManager.Data:AddActivePartialSet(setName)
                     changedState = true
+                    print("|cFF00FFFFEqManager|r: Detected partial set |cFFFFFF00" .. setName .. "|r as equipped.")
+                    if EM_OPTIONS.Debug then
+                        print("|cFF00FFFFEqManager DEBUG|r:   -> |cFF00FF00ACTIVATING|r set " .. setName)
+                    end
                 elseif not isFullyEquipped and isActive then
                     if setName ~= EqManager.Data.db.CurrentSet then
                         EqManager.Data:RemoveActivePartialSet(setName)
                         changedState = true
+                        print("|cFF00FFFFEqManager|r: Partial set |cFFFFFF00" .. setName .. "|r no longer equipped.")
+                        if EM_OPTIONS.Debug then
+                            print("|cFF00FFFFEqManager DEBUG|r:   -> |cFFFF0000DEACTIVATING|r set " .. setName)
+                        end
                     end
                 end
             end

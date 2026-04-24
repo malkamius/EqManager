@@ -117,13 +117,14 @@ function EqManagerData:PerformMigrations(realm, char)
     end
 
     -- 3. Normalize all existing sets to use strictly integer keys for slots
+    --    Also strip invalid slot 0 (WoW serializer artifact for sparse tables)
     if charStore.Sets then
         for _, setData in pairs(charStore.Sets) do
             if setData.slots then
                 local norm = {}
                 for k, v in pairs(setData.slots) do
                     local numKey = tonumber(k)
-                    if numKey then
+                    if numKey and numKey >= 1 and numKey <= 19 then
                         norm[numKey] = v
                     end
                 end

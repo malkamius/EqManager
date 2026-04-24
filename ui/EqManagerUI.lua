@@ -619,11 +619,8 @@ function EqManagerUI:RefreshSetsList()
             end
             entry.cbSelection:SetChecked(isChecked)
             
-            if EqManager.Data.db.BaseFullSet == setName then
-                entry.cbSelection:Disable()
-            else
-                entry.cbSelection:Enable()
-            end
+            -- Base set checkbox is now clickable for re-equip/reset
+            entry.cbSelection:Enable()
             
             if EqManager.Data.db.CurrentSet == setName then 
                 currentFound = true 
@@ -933,21 +930,25 @@ function EqManagerUI:CreateSetEntry(index)
     entry:SetScript("OnClick", function(self)
         EqManager.Data.db.CurrentSet = self.setName
         
-        -- Auto-activate if not active
-        local isActive = false
-        if EqManager.Data.db.BaseFullSet == self.setName then
-            isActive = true
+        local isBase = (EqManager.Data.db.BaseFullSet == self.setName)
+        
+        if isBase then
+            -- Re-equip base: Clear all partials and force re-equip
+            EqManager.Data:ClearActivePartialSets()
+            EqManager.Queue:QueueSet(self.setName, "Manual")
         else
+            -- Auto-activate if not active
+            local isActive = false
             for _, pName in ipairs(EqManager.Data:GetActivePartialSets()) do
                 if pName == self.setName then
                     isActive = true
                     break
                 end
             end
-        end
-        
-        if not isActive then
-            EqManager.Queue:QueueSet(self.setName, "Manual")
+            
+            if not isActive then
+                EqManager.Queue:QueueSet(self.setName, "Manual")
+            end
         end
         
         EqManager.UI:RefreshSetsList()
@@ -968,7 +969,14 @@ function EqManagerUI:CreateSetEntry(index)
     cbSelection:SetScript("OnClick", function(self)
         EqManager.Data.db.CurrentSet = entry.setName
         
-        if self:GetChecked() then
+        local isBase = (EqManager.Data.db.BaseFullSet == entry.setName)
+        
+        if isBase then
+            -- Force check and re-equip (clearing partials)
+            self:SetChecked(true)
+            EqManager.Data:ClearActivePartialSets()
+            EqManager.Queue:QueueSet(entry.setName, "Manual")
+        elseif self:GetChecked() then
             EqManager.Queue:QueueSet(entry.setName, "Manual")
         else
             local set = EqManager.Data:GetSet(entry.setName)
