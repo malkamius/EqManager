@@ -36,6 +36,7 @@ Trigger automatic set swaps based on:
 - **Item Set Tooltips**: Displays set membership information directly on item tooltips with support for partial set indicators and membership status.
 - **Event Provenance**: Detailed chat logging that identifies the specific event or manual action that triggered an equipment change.
 - **Intelligent Selection**: Clicking a set name automatically selects it for editing and ensures it is equipped so you can immediately configure its slots.
+- **Detailed Set Feedback**: Chat messages list exactly which items were updated during a manual save or automatic gear update.
 - **Responsive UI**: Automatically detects and repositions its panes if other UI addons (like Extended Character Stats) are present.
 
 

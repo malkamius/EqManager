@@ -248,6 +248,7 @@ end
 function EqManagerPaperDoll:SaveCurrentEquipmentAsSet(name, forcePartial)
     local slotsCount = 19
     local items = {}
+    local changes = {}
     
     local existingSet = EqManager.Data:GetSet(name)
     local isNewForcedPartial = forcePartial and not existingSet
@@ -273,7 +274,16 @@ function EqManagerPaperDoll:SaveCurrentEquipmentAsSet(name, forcePartial)
             
             if shouldSave then
                 local link = GetInventoryItemLink("player", i)
-                items[i] = link or "EMPTY"
+                local newItem = link or "EMPTY"
+                items[i] = newItem
+                
+                -- Check for changes if set already exists
+                if existingSet and existingSet.slots then
+                    local oldItem = existingSet.slots[i] or "EMPTY"
+                    if oldItem ~= newItem then
+                        table.insert(changes, newItem)
+                    end
+                end
             end
         end
     end
@@ -286,7 +296,22 @@ function EqManagerPaperDoll:SaveCurrentEquipmentAsSet(name, forcePartial)
         EqManager.Data:AddActivePartialSet(name)
     end
     
-    print("|cFF00FFFFEqManager|r: Saved set " .. name)
+    if not existingSet then
+        -- New set summary
+        local count = 0
+        for _ in pairs(items) do count = count + 1 end
+        print("|cFF00FFFFEqManager|r: Saved new set |cFFFFFF00" .. name .. "|r (" .. count .. " items).")
+    elseif #changes > 0 then
+        -- Updated existing set with specific changes
+        print("|cFF00FFFFEqManager|r: Updated set |cFFFFFF00" .. name .. "|r:")
+        for _, itemLink in ipairs(changes) do
+            print("  - " .. itemLink)
+        end
+    else
+        -- No changes found but save was triggered
+        print("|cFF00FFFFEqManager|r: Saved set |cFFFFFF00" .. name .. "|r (no changes).")
+    end
+
     if EqManager.UI and EqManager.UI.frame and EqManager.UI.frame:IsVisible() then
         EqManager.UI:RefreshSetsList()
     end

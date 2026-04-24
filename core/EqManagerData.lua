@@ -184,6 +184,8 @@ end
 
 function EqManagerData:MoveSet(setName, direction)
     local order = self:GetSetNames() -- ensures synced
+    if not order then return end
+    
     local idx
     for i, name in ipairs(order) do
         if name == setName then

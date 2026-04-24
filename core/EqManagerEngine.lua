@@ -390,10 +390,12 @@ function EqManagerEngine:OnEquipmentChanged(slotId, hasItem)
     if condition == "CHARACTER" then
         if not PaperDollFrame or not PaperDollFrame:IsVisible() then return end
     elseif condition == "SETS" then
-        if not EqManagerMainFrame or not EqManagerMainFrame:IsVisible() then return end
+        local frame = EqManager.UI and EqManager.UI.frame
+        if not frame or not frame:IsVisible() then return end
     elseif condition == "BOTH" then
         local pdVisible = PaperDollFrame and PaperDollFrame:IsVisible()
-        local mainVisible = EqManagerMainFrame and EqManagerMainFrame:IsVisible()
+        local frame = EqManager.UI and EqManager.UI.frame
+        local mainVisible = frame and frame:IsVisible()
         if not pdVisible and not mainVisible then return end
     end
     -- "ALWAYS" falls through to execute update logic
@@ -432,6 +434,8 @@ function EqManagerEngine:OnEquipmentChanged(slotId, hasItem)
     local currentInSet = targetSet.slots[slotId]
     if currentInSet ~= newItem then
         targetSet.slots[slotId] = newItem
+
+        print("|cFF00FFFFEqManager|r: Auto-updated |cFFFFFF00" .. (link or "(Empty)") .. "|r in set |cFFFFFF00" .. targetSetName .. "|r.")
 
         if EM_OPTIONS.Debug then
             print(string.format("|cFF00FFFFEqManager DEBUG|r: Auto-Updated slot %d in set |cFFFFFF00%s|r to %s",

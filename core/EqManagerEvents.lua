@@ -153,8 +153,16 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
             end
         end
     elseif event == "ACTIVE_TALENT_GROUP_CHANGED" then
-        local currentSpec = GetActiveTalentGroup()
-        self:EvaluateBindings("SPEC_CHANGED", tostring(currentSpec))
+        local currentSpec
+        if C_SpecializationInfo and C_SpecializationInfo.GetActiveSpecGroup then
+            currentSpec = C_SpecializationInfo.GetActiveSpecGroup()
+        elseif GetActiveTalentGroup then
+            currentSpec = GetActiveTalentGroup()
+        end
+        
+        if currentSpec then
+            self:EvaluateBindings("SPEC_CHANGED", tostring(currentSpec))
+        end
     elseif event == "PLAYER_FLAGS_CHANGED" then
         local isPvP = UnitIsPVP("player")
         if isPvP ~= self.lastPvPState then
