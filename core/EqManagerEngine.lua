@@ -111,13 +111,11 @@ function EqManagerEngine:CheckAutoDetectSets()
                         print("|cFF00FFFFEqManager DEBUG|r:   -> |cFF00FF00ACTIVATING|r set " .. setName)
                     end
                 elseif equippedCount == 0 and isActive then
-                    if setName ~= EqManager.Data.db.CurrentSet then
-                        EqManager.Data:RemoveActivePartialSet(setName)
-                        changedState = true
-                        print("|cFF00FFFFEqManager|r: Partial set |cFFFFFF00" .. setName .. "|r no longer equipped.")
-                        if EM_OPTIONS.Debug then
-                            print("|cFF00FFFFEqManager DEBUG|r:   -> |cFFFF0000DEACTIVATING|r set " .. setName)
-                        end
+                    EqManager.Data:RemoveActivePartialSet(setName)
+                    changedState = true
+                    print("|cFF00FFFFEqManager|r: Partial set |cFFFFFF00" .. setName .. "|r no longer equipped.")
+                    if EM_OPTIONS.Debug then
+                        print("|cFF00FFFFEqManager DEBUG|r:   -> |cFFFF0000DEACTIVATING|r set " .. setName)
                     end
                 end
             end
@@ -384,10 +382,30 @@ function EqManagerEngine:ResumeSwapping()
 end
 
 function EqManagerEngine:OnEquipmentChanged(slotId, hasItem)
-    if self.isInternalSwap or (GetTime() - self.lastInternalSwapTime < 1.0) then return end
+    if self.isInternalSwap or (GetTime() - self.lastInternalSwapTime < 1.0) then 
+        self.deferredSlots = self.deferredSlots or {}
+        self.deferredSlots[slotId] = true
+        
+        if not self.deferredCheckPending then
+            self.deferredCheckPending = true
+            C_Timer.After(1.1, function()
+                self.deferredCheckPending = false
+                self:CheckAutoDetectSets()
+                
+                for dSlotId, _ in pairs(self.deferredSlots) do
+                    self:RunAutoUpdate(dSlotId)
+                end
+                wipe(self.deferredSlots)
+            end)
+        end
+        return 
+    end
     
     self:CheckAutoDetectSets()
-    
+    self:RunAutoUpdate(slotId)
+end
+
+function EqManagerEngine:RunAutoUpdate(slotId)
     local condition = EM_OPTIONS.AutoUpdateCondition or "CHARACTER"
     if condition == "DISABLED" then return end
 
@@ -407,6 +425,7 @@ function EqManagerEngine:OnEquipmentChanged(slotId, hasItem)
     -- 1. Identify Which Set Should be Updated
     -- Priority: Active Partial Set covering this slot > BaseFullSet
     local targetSet = nil
+    local targetSetName = nil
 
     local activePartials = EqManager.Data:GetActivePartialSets()
     for _, partialName in ipairs(activePartials) do

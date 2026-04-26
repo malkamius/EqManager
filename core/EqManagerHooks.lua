@@ -242,6 +242,9 @@ function EqManagerHooks:InstallTooltipHooks()
         local name, link = tooltip:GetItem()
         if not link then return end
         
+        local _, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfo(link)
+        if not itemEquipLoc or itemEquipLoc == "" then return end
+        
         local sets = EqManager.Bags:GetSetsForItem(link)
         if sets and #sets > 0 then
             tooltip:AddLine(" ")
