@@ -15,8 +15,10 @@ function EqManagerData:Init()
     EM_DATA[realm][char] = EM_DATA[realm][char] or {}
     
     local charStore = EM_DATA[realm][char]
-
     self.db = charStore
+    
+    charStore.Options = charStore.Options or {}
+    self:MigrateOptions()
     
     self:PerformMigrations(realm, char)
 
@@ -30,6 +32,36 @@ function EqManagerData:Init()
     charStore.SetOrder = charStore.SetOrder or nil
     charStore.PendingTasks = charStore.PendingTasks or {}
     charStore.LastAFKState = charStore.LastAFKState or false
+    
+    -- Expose character-specific options as EqManager.Options for easy access
+    EqManager.Options = charStore.Options
+end
+
+function EqManagerData:MigrateOptions()
+    local options = self.db.Options
+    
+    -- If local options are empty but global EM_OPTIONS has data, migrate it
+    -- Note: EM_OPTIONS will eventually be removed from .toc, but this handles the transition.
+    if EM_OPTIONS and type(EM_OPTIONS) == "table" and not EM_OPTIONS[GetRealmName()] then
+        -- This is the legacy flat EM_OPTIONS
+        for k, v in pairs(EM_OPTIONS) do
+            if options[k] == nil then
+                options[k] = v
+            end
+        end
+    end
+
+    if options.ShowTooltips == nil then options.ShowTooltips = true end
+    if options.ShowUI == nil then options.ShowUI = false end
+    if options.AutoUpdateCondition == nil then
+        if options.AutoUpdateBaseSet == false then
+            options.AutoUpdateCondition = "DISABLED"
+        else
+            options.AutoUpdateCondition = "CHARACTER"
+        end
+    end
+    if options.SwapDelay == nil then options.SwapDelay = 0.1 end
+    if options.EnableBagDimming == nil then options.EnableBagDimming = false end
 end
 
 function EqManagerData:PerformMigrations(realm, char)

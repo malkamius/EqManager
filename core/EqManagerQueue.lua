@@ -44,7 +44,7 @@ function EqManagerQueue:QueueSet(action, source)
         table.insert(self.pendingQueue, { action = action, source = source })
     elseif isUnequip and not set.isPartial then
         -- Base Set Unequip: Prohibited
-        if EM_OPTIONS.Debug then
+        if EqManager.Options.Debug then
             print("|cFF00FFFFEqManager DEBUG|r: Ignoring un-equip action for base set: " .. targetSetName)
         end
         return

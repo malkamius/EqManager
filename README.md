@@ -13,6 +13,7 @@ EqManager is inspired by the **GearQuipper** addon. While it draws inspiration f
 - **Base Set Re-equip**: Click the base set label or checkbox to clear all partials and reset to your base gear configuration.
 - **Auto-Detect Notifications**: Chat messages alert you when a partial set is detected as equipped or unequipped.
 - **Custom Sorting**: Reorder your equipment sets manually using dedicated Up/Down buttons in the main UI.
+- **Per-Character Settings**: Each character maintains its own independent configuration, including auto-update preferences and UI options.
 
 
 ### Equipment Queue & State Machine

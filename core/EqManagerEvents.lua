@@ -44,7 +44,7 @@ function EqManagerEvents:Init()
 end
 
 function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
-    if EM_OPTIONS.DisableEvents then return end
+    if EqManager.Options.DisableEvents then return end
     
     local eventSources = {
         COMBAT_ENTER = "Entering Combat",
@@ -104,7 +104,7 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
 end
 
 function EqManagerEvents:OnSystemEvent(event, arg1, ...)
-    if EM_OPTIONS.Debug then
+    if EqManager.Options.Debug then
         print("|cFF00FFFFEqManager|r: Debug Event:", event, arg1)
     end
     

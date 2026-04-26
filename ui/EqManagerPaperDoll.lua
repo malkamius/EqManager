@@ -57,16 +57,16 @@ function EqManagerPaperDoll:InjectButton()
             local uiFrame = EqManager.UI.frame
             if uiFrame and uiFrame:IsVisible() then
                 uiFrame:Hide()
-                EM_OPTIONS.ShowUI = false
+                EqManager.Options.ShowUI = false
             elseif uiFrame then
                 uiFrame:Show()
-                EM_OPTIONS.ShowUI = true
+                EqManager.Options.ShowUI = true
             end
         end)
     end
     self.btn:Show()
 
-    if EM_OPTIONS.ShowUI and EqManager.UI.frame and not EqManager.UI.frame:IsVisible() then
+    if EqManager.Options.ShowUI and EqManager.UI.frame and not EqManager.UI.frame:IsVisible() then
         EqManager.UI.frame:Show()
     end
 end
@@ -348,7 +348,7 @@ function EqManagerPaperDoll:UpdateHighlights()
     local itemSources = {} -- For telemetry
     local refSet = EqManager.Data.db.CurrentSet
     
-    if EM_OPTIONS.Debug then
+    if EqManager.Options.Debug then
         print("|cFF00FFFFEqManager DEBUG|r: --- UpdateHighlights ---")
         print("|cFF00FFFFEqManager DEBUG|r: RefSet: " .. (refSet or "None"))
     end
@@ -409,7 +409,7 @@ function EqManagerPaperDoll:UpdateHighlights()
     for slotId, highlight in pairs(self.highlightOverlays) do
         local targetItem = desiredItems[slotId]
         if targetItem and targetItem ~= "EMPTY" and targetItem ~= "VALUE_NONE" and targetItem ~= "$NONE" then
-            if EM_OPTIONS.Debug then
+            if EqManager.Options.Debug then
                 local nameStr = targetItem:match("%[(.-)%]") or targetItem
                 print(string.format("|cFF00FFFFEqManager DEBUG|r: Slot %d, Source: %s, Looking for: %s", 
                     slotId, itemSources[slotId] or "??", nameStr))

@@ -71,7 +71,7 @@ function EqManagerBags:GetItemIdFromLink(link)
 end
 
 function EqManagerBags:IsItemInAnySet(itemLink)
-    if not EM_OPTIONS.EnableBagDimming then return false end
+    if not EqManager.Options.EnableBagDimming then return false end
     local itemId = self:GetItemIdFromLink(itemLink)
     if not itemId then return false end
     
@@ -92,7 +92,7 @@ function EqManagerBags:GetItemLocationForSlot(targetLink, slotId)
     local targetId = self:GetItemIdFromLink(targetLink)
     local targetName = targetLink:match("%[(.-)%]")
     
-    if EM_OPTIONS.Debug then
+    if EqManager.Options.Debug then
         print(string.format("|cFF00FFFFEqManager DEBUG|r: Slot %d, Looking for: %s (ID: %s)", 
             slotId, targetName or "Unknown", tostring(targetId) or "nil"))
     end
@@ -105,7 +105,7 @@ function EqManagerBags:GetItemLocationForSlot(targetLink, slotId)
         local id = self:GetItemIdFromLink(link)
         local name = link:match("%[(.-)%]")
         
-        if EM_OPTIONS.Debug then
+        if EqManager.Options.Debug then
             print(string.format("|cFF00FFFFEqManager DEBUG|r: ...Equipped in slot %d: %s (ID: %s)", 
                 slotId, name or "Unknown", tostring(id) or "nil"))
         end
@@ -116,11 +116,11 @@ function EqManagerBags:GetItemLocationForSlot(targetLink, slotId)
         end
         
         if match then 
-            if EM_OPTIONS.Debug then print("|cFF00FFFFEqManager DEBUG|r: ...Result: EQUIPPED") end
+            if EqManager.Options.Debug then print("|cFF00FFFFEqManager DEBUG|r: ...Result: EQUIPPED") end
             return "EQUIPPED" 
         end
     else
-        if EM_OPTIONS.Debug then print("|cFF00FFFFEqManager DEBUG|r: ...Slot is Empty") end
+        if EqManager.Options.Debug then print("|cFF00FFFFEqManager DEBUG|r: ...Slot is Empty") end
     end
 
     -- 2. Check player's immediate inventory ONLY (Backpack=0, Bags 1-4)
@@ -136,7 +136,7 @@ function EqManagerBags:GetItemLocationForSlot(targetLink, slotId)
                     local bId = self:GetItemIdFromLink(bLink)
                     local bName = bLink:match("%[(.-)%]")
                     if (targetId and bId == targetId) or (targetName and bName == targetName) then
-                        if EM_OPTIONS.Debug then
+                        if EqManager.Options.Debug then
                             print(string.format("|cFF00FFFFEqManager DEBUG|r: ...Result: BAGS (Found in Bag %d, Slot %d)", bag, slot))
                         end
                         return "BAGS"
@@ -146,12 +146,12 @@ function EqManagerBags:GetItemLocationForSlot(targetLink, slotId)
         end
     end
 
-    if EM_OPTIONS.Debug then print("|cFF00FFFFEqManager DEBUG|r: ...Result: MISSING") end
+    if EqManager.Options.Debug then print("|cFF00FFFFEqManager DEBUG|r: ...Result: MISSING") end
     return "MISSING"
 end
 
 function EqManagerBags:ToggleDimming(enable)
-    EM_OPTIONS.EnableBagDimming = enable
+    EqManager.Options.EnableBagDimming = enable
     if EqManager.Hooks then
         EqManager.Hooks:RefreshBags()
     end

@@ -19,7 +19,7 @@ function EqManagerUI:CreateMainFrame()
     
     if frame.CloseButton then
         frame.CloseButton:HookScript("OnClick", function()
-            EM_OPTIONS.ShowUI = false
+            EqManager.Options.ShowUI = false
         end)
     end
     
@@ -296,13 +296,13 @@ function EqManagerUI:CreateMainFrame()
     delayEdit:SetScript("OnEnterPressed", function(self)
         local val = tonumber(self:GetText())
         if val then
-            EM_OPTIONS.SwapDelay = val
+            EqManager.Options.SwapDelay = val
             print("|cFF00FFFFEqManager|r: Swap delay set to " .. val .. "s")
         end
         self:ClearFocus()
     end)
     delayEdit:SetScript("OnShow", function(self)
-        self:SetText(tostring(EM_OPTIONS.SwapDelay or 0.1))
+        self:SetText(tostring(EqManager.Options.SwapDelay or 0.1))
     end)
     self.delayEdit = delayEdit
     
@@ -324,7 +324,7 @@ function EqManagerUI:CreateMainFrame()
     cbShowTooltips.text:SetText("Show Tooltips")
 
     cbShowTooltips:SetScript("OnClick", function(self)
-        EM_OPTIONS.ShowTooltips = self:GetChecked()
+        EqManager.Options.ShowTooltips = self:GetChecked()
     end)
     self.cbShowTooltips = cbShowTooltips
 
@@ -470,7 +470,7 @@ function EqManagerUI:CreateMainFrame()
     disableEvtsBtn.text:SetPoint("LEFT", disableEvtsBtn, "RIGHT", 5, 0)
     disableEvtsBtn.text:SetText("Disable events")
     disableEvtsBtn:SetScript("OnClick", function(self)
-        EM_OPTIONS.DisableEvents = self:GetChecked()
+        EqManager.Options.DisableEvents = self:GetChecked()
     end)
 end
 
@@ -700,7 +700,7 @@ function EqManagerUI:RefreshSetsList()
         { text = "Always", value = "ALWAYS" },
     }
 
-    local currentCond = EM_OPTIONS.AutoUpdateCondition or "CHARACTER"
+    local currentCond = EqManager.Options.AutoUpdateCondition or "CHARACTER"
     local currentText = "Character Frame"
     for _, opt in ipairs(updateConditions) do
         if opt.value == currentCond then
@@ -716,16 +716,16 @@ function EqManagerUI:RefreshSetsList()
             info.text = opt.text
             info.arg1 = opt.value
             info.func = function(self, arg1)
-                EM_OPTIONS.AutoUpdateCondition = arg1
+                EqManager.Options.AutoUpdateCondition = arg1
                 UIDropDownMenu_SetText(EqManagerUI.updateDropdown, self:GetText())
                 print("|cFF00FFFFEqManager|r: Auto-update gear set to |cFFFFFF00" .. self:GetText() .. "|r.")
             end
-            info.checked = (opt.value == EM_OPTIONS.AutoUpdateCondition)
+            info.checked = (opt.value == EqManager.Options.AutoUpdateCondition)
             UIDropDownMenu_AddButton(info)
         end
     end)
-    self.cbBagDimming:SetChecked(EM_OPTIONS.EnableBagDimming)
-    self.cbShowTooltips:SetChecked(EM_OPTIONS.ShowTooltips)
+    self.cbBagDimming:SetChecked(EqManager.Options.EnableBagDimming)
+    self.cbShowTooltips:SetChecked(EqManager.Options.ShowTooltips)
     self.setSettingsFrame:Show()
 end
 

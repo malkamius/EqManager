@@ -26,19 +26,6 @@ local function OnEvent(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "EqManager" then
         -- Initialize SavedVariables schema
         EM_DATA = EM_DATA or {}
-        EM_OPTIONS = EM_OPTIONS or {}
-        EM_OPTIONS.AutoUpdateBaseSet = (EM_OPTIONS.AutoUpdateBaseSet == nil) and true or EM_OPTIONS.AutoUpdateBaseSet
-        if EM_OPTIONS.AutoUpdateCondition == nil then
-            if EM_OPTIONS.AutoUpdateBaseSet == false then
-                EM_OPTIONS.AutoUpdateCondition = "DISABLED"
-            else
-                EM_OPTIONS.AutoUpdateCondition = "CHARACTER"
-            end
-        end
-        EM_OPTIONS.ShowUI = (EM_OPTIONS.ShowUI == nil) and false or EM_OPTIONS.ShowUI
-        EM_OPTIONS.SwapDelay = (EM_OPTIONS.SwapDelay == nil) and 0.1 or EM_OPTIONS.SwapDelay
-        EM_OPTIONS.EnableBagDimming = (EM_OPTIONS.EnableBagDimming == nil) and false or EM_OPTIONS.EnableBagDimming
-        EM_OPTIONS.ShowTooltips = (EM_OPTIONS.ShowTooltips == nil) and true or EM_OPTIONS.ShowTooltips
         EM_AUX = EM_AUX or {}
 
         -- Call internal Init on Data first
@@ -68,8 +55,8 @@ SlashCmdList["EQMANAGER"] = function(msg)
     for word in msg:gmatch("%S+") do table.insert(args, word) end
 
     if args[1] == "debug" then
-        EM_OPTIONS.Debug = not EM_OPTIONS.Debug
-        print("|cFF00FFFFEqManager|r: debug mode " .. (EM_OPTIONS.Debug and "enabled." or "disabled."))
+        EqManager.Options.Debug = not EqManager.Options.Debug
+        print("|cFF00FFFFEqManager|r: debug mode " .. (EqManager.Options.Debug and "enabled." or "disabled."))
     else
         print("|cFF00FFFFEqManager|r: /em debug")
     end

@@ -24,7 +24,7 @@ function EqManagerHooks:RefreshBags()
         
         -- Check if it's a Baganator button
         if btn.BGR then
-            if not EM_OPTIONS.EnableBagDimming then
+            if not EqManager.Options.EnableBagDimming then
                 if btn.emDimmed then btn:SetAlpha(1.0); btn.emDimmed = false end
             elseif btn.BGR.itemLink then
                 if not EqManager.Bags:IsItemInAnySet(btn.BGR.itemLink) then
@@ -45,7 +45,7 @@ function EqManagerHooks:RefreshBags()
             local getLink = GetContainerItemLink or (C_Container and C_Container.GetContainerItemLink)
             local link = getLink and getLink(bag, slot)
             
-            if not EM_OPTIONS.EnableBagDimming then
+            if not EqManager.Options.EnableBagDimming then
                 if btn.emDimmed then btn:SetAlpha(1.0); btn.emDimmed = false end
             elseif link and not EqManager.Bags:IsItemInAnySet(link) then
                 btn:SetAlpha(0.3); btn.emDimmed = true
@@ -109,7 +109,7 @@ end
 
 function EqManagerHooks:InstallBlizzardHooks()
     local function applyDimming(self)
-        if not EM_OPTIONS.EnableBagDimming then 
+        if not EqManager.Options.EnableBagDimming then 
             if self.emDimmed then
                 self:SetAlpha(1.0)
                 self.emDimmed = false
@@ -152,7 +152,7 @@ function EqManagerHooks:InstallAdiBagsHooks()
         local itemButtonClass = AdiBags:GetClass("ItemButton")
         if itemButtonClass and itemButtonClass.prototype then
             hooksecurefunc(itemButtonClass.prototype, "UpdateAlpha", function(self)
-            if not EM_OPTIONS.EnableBagDimming then 
+            if not EqManager.Options.EnableBagDimming then 
                 if self.emDimmed then
                     self:SetAlpha(1.0)
                     self.emDimmed = false
@@ -188,7 +188,7 @@ end
 
 function EqManagerHooks:InstallBaganatorHooks()
     local function applyDimming(self)
-        if not EM_OPTIONS.EnableBagDimming then 
+        if not EqManager.Options.EnableBagDimming then 
             if self.emDimmed then
                 self:SetAlpha(1.0)
                 self.emDimmed = false
@@ -237,7 +237,7 @@ end
 
 function EqManagerHooks:InstallTooltipHooks()
     local function onTooltipSetItem(tooltip)
-        if not EM_OPTIONS or not EM_OPTIONS.ShowTooltips then return end
+        if not EqManager.Options or not EqManager.Options.ShowTooltips then return end
         
         local name, link = tooltip:GetItem()
         if not link then return end

@@ -41,7 +41,7 @@ function EqManagerEngine:CheckAutoDetectSets()
             local slotCount = 0
             local equippedCount = 0
 
-            if EM_OPTIONS.Debug then
+            if EqManager.Options.Debug then
                 print("|cFF00FFFFEqManager DEBUG|r: AutoDetect checking set: |cFFFFFF00" .. setName .. "|r")
             end
 
@@ -69,7 +69,7 @@ function EqManagerEngine:CheckAutoDetectSets()
                             isMatch = true
                         end
 
-                        if EM_OPTIONS.Debug then
+                        if EqManager.Options.Debug then
                             print(string.format("|cFF00FFFFEqManager DEBUG|r:   Slot %d: target=%s (id=%s) vs equipped=%s (id=%s) -> %s",
                                 slotId,
                                 tostring(targetName or item),
@@ -91,7 +91,7 @@ function EqManagerEngine:CheckAutoDetectSets()
                 end
             end
 
-            if EM_OPTIONS.Debug then
+            if EqManager.Options.Debug then
                 print(string.format("|cFF00FFFFEqManager DEBUG|r:   Result: hasItems=%s, slots=%d, fullyEquipped=%s, failedSlot=%s, equippedCount=%d",
                     tostring(hasAnyItems), slotCount, tostring(isFullyEquipped), tostring(failedSlot), equippedCount))
             end
@@ -107,14 +107,14 @@ function EqManagerEngine:CheckAutoDetectSets()
                     EqManager.Data:AddActivePartialSet(setName)
                     changedState = true
                     print("|cFF00FFFFEqManager|r: Detected partial set |cFFFFFF00" .. setName .. "|r as equipped.")
-                    if EM_OPTIONS.Debug then
+                    if EqManager.Options.Debug then
                         print("|cFF00FFFFEqManager DEBUG|r:   -> |cFF00FF00ACTIVATING|r set " .. setName)
                     end
                 elseif equippedCount == 0 and isActive then
                     EqManager.Data:RemoveActivePartialSet(setName)
                     changedState = true
                     print("|cFF00FFFFEqManager|r: Partial set |cFFFFFF00" .. setName .. "|r no longer equipped.")
-                    if EM_OPTIONS.Debug then
+                    if EqManager.Options.Debug then
                         print("|cFF00FFFFEqManager DEBUG|r:   -> |cFFFF0000DEACTIVATING|r set " .. setName)
                     end
                 end
@@ -360,7 +360,7 @@ function EqManagerEngine:ProcessNextTask()
     local task = table.remove(tasks, 1)
     EquipItemByName(task.targetItem, task.slotId)
 
-    local delay = EM_OPTIONS.SwapDelay or 0
+    local delay = EqManager.Options.SwapDelay or 0
     if delay > 0 then
         C_Timer.After(delay, function() self:ProcessNextTask() end)
     else
@@ -406,7 +406,7 @@ function EqManagerEngine:OnEquipmentChanged(slotId, hasItem)
 end
 
 function EqManagerEngine:RunAutoUpdate(slotId)
-    local condition = EM_OPTIONS.AutoUpdateCondition or "CHARACTER"
+    local condition = EqManager.Options.AutoUpdateCondition or "CHARACTER"
     if condition == "DISABLED" then return end
 
     if condition == "CHARACTER" then
@@ -460,7 +460,7 @@ function EqManagerEngine:RunAutoUpdate(slotId)
 
         print("|cFF00FFFFEqManager|r: Auto-updated |cFFFFFF00" .. (link or "(Empty)") .. "|r in set |cFFFFFF00" .. targetSetName .. "|r.")
 
-        if EM_OPTIONS.Debug then
+        if EqManager.Options.Debug then
             print(string.format("|cFF00FFFFEqManager DEBUG|r: Auto-Updated slot %d in set |cFFFFFF00%s|r to %s",
                 slotId, targetSetName, link or "(Empty)"))
         end
