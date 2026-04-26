@@ -39,6 +39,7 @@ function EqManagerEngine:CheckAutoDetectSets()
             local hasAnyItems = false
             local failedSlot = nil
             local slotCount = 0
+            local equippedCount = 0
 
             if EM_OPTIONS.Debug then
                 print("|cFF00FFFFEqManager DEBUG|r: AutoDetect checking set: |cFFFFFF00" .. setName .. "|r")
@@ -81,15 +82,18 @@ function EqManagerEngine:CheckAutoDetectSets()
                     
                     if not isMatch then
                         isFullyEquipped = false
-                        failedSlot = slotId
-                        break
+                        if not failedSlot then
+                            failedSlot = slotId
+                        end
+                    else
+                        equippedCount = equippedCount + 1
                     end
                 end
             end
 
             if EM_OPTIONS.Debug then
-                print(string.format("|cFF00FFFFEqManager DEBUG|r:   Result: hasItems=%s, slots=%d, fullyEquipped=%s, failedSlot=%s",
-                    tostring(hasAnyItems), slotCount, tostring(isFullyEquipped), tostring(failedSlot)))
+                print(string.format("|cFF00FFFFEqManager DEBUG|r:   Result: hasItems=%s, slots=%d, fullyEquipped=%s, failedSlot=%s, equippedCount=%d",
+                    tostring(hasAnyItems), slotCount, tostring(isFullyEquipped), tostring(failedSlot), equippedCount))
             end
 
             -- Only consider valid partial sets that actually declare items
@@ -106,7 +110,7 @@ function EqManagerEngine:CheckAutoDetectSets()
                     if EM_OPTIONS.Debug then
                         print("|cFF00FFFFEqManager DEBUG|r:   -> |cFF00FF00ACTIVATING|r set " .. setName)
                     end
-                elseif not isFullyEquipped and isActive then
+                elseif equippedCount == 0 and isActive then
                     if setName ~= EqManager.Data.db.CurrentSet then
                         EqManager.Data:RemoveActivePartialSet(setName)
                         changedState = true
