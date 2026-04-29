@@ -2,7 +2,7 @@
 ## Title: EqManager
 ## Notes: Quick switch your gear sets.
 ## Author: Gemini
-## Version: 1.7.0
+## Version: 1.8.0
 ## SavedVariables: EM_DATA, EM_AUX
 
 eqmanager.lua

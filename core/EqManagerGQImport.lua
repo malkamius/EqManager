@@ -190,6 +190,13 @@ function EqManagerGQImport:ImportEvents()
                     subType = tostring(gqSubType)
                 end
 
+                -- Translate spec names to indices for GearQuipper imports
+                if emType == "SPEC_CHANGED" and subType then
+                    if string.lower(subType) == "primary" then subType = "1"
+                    elseif string.lower(subType) == "secondary" then subType = "2"
+                    end
+                end
+
                 -- Map PvP filter
                 local pvpFilter = "ANY"
                 local hasPVE = binding["FIELD_PVE"]

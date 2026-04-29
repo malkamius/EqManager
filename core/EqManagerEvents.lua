@@ -87,7 +87,8 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
         elseif eventType == "SHAPESHIFT" then
             sourceStr = "Shapeshift: " .. eventSubType
         elseif eventType == "SPEC_CHANGED" then
-            sourceStr = "Spec Change: " .. eventSubType
+            local specName = (eventSubType == "1") and "Primary" or (eventSubType == "2" and "Secondary" or eventSubType)
+            sourceStr = "Spec Change: " .. specName
         else
             sourceStr = sourceStr .. " (" .. eventSubType .. ")"
         end
@@ -98,7 +99,18 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
         if ev.type == eventType then
             local match = true
             if ev.subType and ev.subType ~= "" then
-                if eventSubType and not string.find(string.lower(eventSubType), string.lower(ev.subType), 1, true) then
+                local subMatch = false
+                if string.find(string.lower(eventSubType), string.lower(ev.subType), 1, true) then
+                    subMatch = true
+                elseif eventType == "SPEC_CHANGED" then
+                    -- Special case for spec names (Primary/Secondary)
+                    local specName = (eventSubType == "1") and "Primary" or (eventSubType == "2" and "Secondary" or eventSubType)
+                    if string.lower(ev.subType) == string.lower(specName) then
+                        subMatch = true
+                    end
+                end
+                
+                if not subMatch then
                     match = false
                 end
             end

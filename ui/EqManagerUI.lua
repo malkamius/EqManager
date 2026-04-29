@@ -601,6 +601,8 @@ function EqManagerUI:InstallRepositionHooks()
 end
 
 function EqManagerUI:RefreshSetsList()
+    if not self.frame or not self.frame:IsVisible() or self.currentMode ~= "SETS" then return end
+    
     for _, btn in ipairs(self.setEntries) do btn:Hide() end
     
     local setNames = EqManager.Data:GetSetNames()
@@ -748,6 +750,8 @@ function EqManagerUI:RefreshSetsList()
 end
 
 function EqManagerUI:RefreshEventsList()
+    if not self.frame or not self.frame:IsVisible() or self.currentMode ~= "EVENTS" then return end
+    
     for _, btn in ipairs(self.masterEventEntries) do btn:Hide() end
     
     local events = EqManager.Data:GetEvents()
@@ -763,8 +767,15 @@ function EqManagerUI:RefreshEventsList()
         
         entry.dbIndex = i
         local label = ev.type
-        if ev.subType and ev.subType ~= "" then
-            label = label .. " (" .. ev.subType .. ")"
+        local displaySubType = ev.subType
+        if label == "SPEC_CHANGED" then
+            if displaySubType == "1" then displaySubType = "Primary"
+            elseif displaySubType == "2" then displaySubType = "Secondary"
+            end
+        end
+
+        if displaySubType and displaySubType ~= "" then
+            label = label .. " (" .. displaySubType .. ")"
         end
         entry.nameText:SetText(label)
         

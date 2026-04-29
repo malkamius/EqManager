@@ -69,6 +69,12 @@ function EqManagerEventDialog:Init()
     subTypeDropdown:SetPoint("TOPLEFT", 10, -105)
     UIDropDownMenu_SetWidth(subTypeDropdown, 200)
     subTypeDropdown:Hide()
+
+    local zonePickerBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    zonePickerBtn:SetSize(200, 22)
+    zonePickerBtn:SetPoint("TOPLEFT", 25, -105)
+    zonePickerBtn:SetText("Select Zone...")
+    zonePickerBtn:Hide()
     
     -- Additional helper text
     local helperText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -101,18 +107,41 @@ function EqManagerEventDialog:Init()
     -- Zone Loading Logic
     local function GetZoneChildrenSorted()
         local zones = {}
-        local parentMapId = 947 -- Azeroth base map in modern APIs, may vary by expansion but covers most bases.
-        -- C_Map is the standard Retail/Modern classic API
+        -- Top-level parent map IDs (World, Outland, Northrend, Pandaria, Draenor, etc.)
+        local parents = { 947, 1945, 113, 424, 572, 619, 875, 876, 1550, 1978 }
+        
         if C_Map and C_Map.GetMapChildrenInfo then
-            local children = C_Map.GetMapChildrenInfo(parentMapId)
-            if children then
-                for _, v in ipairs(children) do
-                    table.insert(zones, v)
+            local function scan(mapID)
+                local children = C_Map.GetMapChildrenInfo(mapID)
+                if children then
+                    for _, v in ipairs(children) do
+                        if v.mapType == 3 then -- MapType 3 is "Zone"
+                            table.insert(zones, v)
+                        elseif v.mapType == 2 then -- MapType 2 is "Continent"
+                            scan(v.mapID) -- Recurse into continents
+                        end
+                    end
                 end
             end
-            local outlands = C_Map.GetMapInfo(1945)
-            if outlands then table.insert(zones, outlands) end
+            
+            for _, pId in ipairs(parents) do
+                scan(pId)
+            end
         end
+
+        -- Always ensure current zone is in the list if available
+        local currentMapId = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+        if currentMapId then
+            local info = C_Map.GetMapInfo(currentMapId)
+            if info then
+                local exists = false
+                for _, z in ipairs(zones) do
+                    if z.mapID == info.mapID then exists = true break end
+                end
+                if not exists then table.insert(zones, info) end
+            end
+        end
+
         table.sort(zones, function(a, b) return (a.name or "") < (b.name or "") end)
         return zones
     end
@@ -133,8 +162,9 @@ function EqManagerEventDialog:Init()
                 if ev.value == "ZONE_ENTER" then
                     subTypeLabel:Show()
                     subTypeBox:Hide()
-                    subTypeDropdown:Show()
-                    UIDropDownMenu_SetText(subTypeDropdown, "Select Zone")
+                    subTypeDropdown:Hide()
+                    zonePickerBtn:Show()
+                    zonePickerBtn:SetText(params.selectedSubType or "Select Zone...")
                     helperText:SetText("Current zone: " .. (GetRealZoneText() or ""))
                     helperText:Show()
                 elseif ev.value == "SHAPESHIFT" then
@@ -146,11 +176,10 @@ function EqManagerEventDialog:Init()
                     helperText:Show()
                 elseif ev.value == "SPEC_CHANGED" then
                     subTypeLabel:Show()
-                    subTypeDropdown:Hide()
-                    subTypeBox:Show()
-                    subTypeBox:SetText("")
-                    helperText:SetText("Enter Spec Index (1 or 2)")
-                    helperText:Show()
+                    subTypeBox:Hide()
+                    subTypeDropdown:Show()
+                    UIDropDownMenu_SetText(subTypeDropdown, "Select Spec")
+                    helperText:Hide()
                 else
                     subTypeLabel:Hide()
                     subTypeBox:Hide()
@@ -164,17 +193,25 @@ function EqManagerEventDialog:Init()
     
     UIDropDownMenu_Initialize(subTypeDropdown, function(self, level, menuList)
         local info = UIDropDownMenu_CreateInfo()
-        local zones = GetZoneChildrenSorted()
-        for _, zoneInfo in ipairs(zones) do
-            info.text = zoneInfo.name
-            info.value = zoneInfo.name
-            info.checked = function() return params.selectedSubType == zoneInfo.name end
-            info.func = function(self)
-                UIDropDownMenu_SetSelectedID(subTypeDropdown, self:GetID())
-                UIDropDownMenu_SetText(subTypeDropdown, zoneInfo.name)
-                params.selectedSubType = zoneInfo.name
+        
+        if params.selectedType == "ZONE_ENTER" then
+            -- Zone selection moved to ZonePicker
+        elseif params.selectedType == "SPEC_CHANGED" then
+            local specs = {
+                { name = "Primary", value = "1" },
+                { name = "Secondary", value = "2" }
+            }
+            for _, specInfo in ipairs(specs) do
+                info.text = specInfo.name
+                info.value = specInfo.value
+                info.checked = function() return params.selectedSubType == specInfo.value end
+                info.func = function(self)
+                    UIDropDownMenu_SetSelectedID(subTypeDropdown, self:GetID())
+                    UIDropDownMenu_SetText(subTypeDropdown, specInfo.name)
+                    params.selectedSubType = specInfo.value
+                end
+                UIDropDownMenu_AddButton(info)
             end
-            UIDropDownMenu_AddButton(info)
         end
     end)
     
@@ -235,7 +272,7 @@ function EqManagerEventDialog:Init()
             local cond = nil
             if subTypeBox:IsVisible() then
                 cond = subTypeBox:GetText()
-            elseif subTypeDropdown:IsVisible() then
+            elseif subTypeDropdown:IsVisible() or zonePickerBtn:IsVisible() then
                 cond = params.selectedSubType
             end
             
@@ -250,6 +287,88 @@ function EqManagerEventDialog:Init()
         end
     end)
     
+    -- Zone Picker Frame Implementation
+    local picker = CreateFrame("Frame", "EqManagerZonePicker", UIParent, "BasicFrameTemplateWithInset")
+    picker:SetSize(250, 350)
+    picker:SetPoint("CENTER")
+    picker:SetFrameStrata("FULLSCREEN_DIALOG")
+    picker:Hide()
+    picker.title = picker:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    picker.title:SetPoint("CENTER", picker.TitleBg, "CENTER", 0, 0)
+    picker.title:SetText("Select Zone")
+
+    local searchBox = CreateFrame("EditBox", nil, picker, "SearchBoxTemplate")
+    searchBox:SetSize(210, 20)
+    searchBox:SetPoint("TOPLEFT", 20, -35)
+    searchBox:SetAutoFocus(false)
+
+    local scrollFrame = CreateFrame("ScrollFrame", "EqManagerZonePickerScroll", picker, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 10, -65)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -30, 10)
+
+    local scrollContent = CreateFrame("Frame", nil, scrollFrame)
+    scrollContent:SetSize(210, 1)
+    scrollFrame:SetScrollChild(scrollContent)
+
+    local zoneButtons = {}
+    local function GetOrCreateZoneButton(index)
+        if zoneButtons[index] then return zoneButtons[index] end
+        local btn = CreateFrame("Button", nil, scrollContent)
+        btn:SetSize(210, 20)
+        btn:SetNormalFontObject("GameFontNormal")
+        btn:SetHighlightFontObject("GameFontHighlight")
+        btn:SetText(" ") -- Ensure FontString is created
+        local fs = btn:GetFontString()
+        fs:SetJustifyH("LEFT")
+        fs:SetPoint("LEFT", 5, 0)
+        
+        local tex = btn:CreateTexture(nil, "HIGHLIGHT")
+        tex:SetAllPoints()
+        tex:SetColorTexture(1, 1, 1, 0.1)
+        
+        btn:SetScript("OnClick", function()
+            params.selectedSubType = btn.zoneName
+            zonePickerBtn:SetText(btn.zoneName)
+            picker:Hide()
+        end)
+        
+        zoneButtons[index] = btn
+        return btn
+    end
+
+    local function RefreshPicker()
+        local filter = searchBox:GetText():lower()
+        local zones = GetZoneChildrenSorted()
+        local yOffset = 0
+        local count = 0
+        
+        for _, btn in ipairs(zoneButtons) do btn:Hide() end
+        
+        for _, zone in ipairs(zones) do
+            if filter == "" or zone.name:lower():find(filter, 1, true) then
+                count = count + 1
+                local btn = GetOrCreateZoneButton(count)
+                btn.zoneName = zone.name
+                btn:SetText(zone.name)
+                btn:SetPoint("TOPLEFT", 0, yOffset)
+                btn:Show()
+                yOffset = yOffset - 20
+            end
+        end
+        scrollContent:SetHeight(math.abs(yOffset))
+    end
+
+    searchBox:SetScript("OnTextChanged", RefreshPicker)
+    zonePickerBtn:SetScript("OnClick", function()
+        picker:Show()
+        searchBox:SetText("")
+        RefreshPicker()
+    end)
+
+    frame:HookScript("OnHide", function()
+        picker:Hide()
+    end)
+
     self.params = params
     self.typeDropdown = typeDropdown
     self.targetDropdown = targetDropdown
@@ -258,7 +377,9 @@ function EqManagerEventDialog:Init()
     self.subTypeLabel = subTypeLabel
     self.subTypeBox = subTypeBox
     self.subTypeDropdown = subTypeDropdown
+    self.zonePickerBtn = zonePickerBtn
     self.helperText = helperText
+    self.picker = picker
 end
 
 function EqManagerEventDialog:ShowDialog()
@@ -278,6 +399,7 @@ function EqManagerEventDialog:ShowDialog()
         self.subTypeLabel:Hide()
         self.subTypeBox:Hide()
         self.subTypeDropdown:Hide()
+        self.zonePickerBtn:Hide()
         self.helperText:Hide()
         
         self.targetLabel:Show()
@@ -294,6 +416,7 @@ function EqManagerEventDialog:ShowDialog()
         self.subTypeLabel:Hide()
         self.subTypeBox:Hide()
         self.subTypeDropdown:Hide()
+        self.zonePickerBtn:Hide()
         self.helperText:Hide()
     end
     

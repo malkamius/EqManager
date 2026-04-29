@@ -29,7 +29,8 @@ Trigger automatic set swaps based on:
 - **Environment States**: Trigger swaps when Submerging or Emerging from water.
 - **Group Dynamics**: Automatically switch gear when joining or leaving a Party or Raid.
 - **Class Mechanics**: Druid Forms, Paladin Auras, Death Knight Presences, and Warrior Stances.
-- **Talent Specialization**: Automatic swaps when switching dual-specs.
+- **Talent Specialization**: Automatic swaps when switching dual-specs with human-readable "Primary" and "Secondary" labels.
+- **Expanded Zone Support**: Recursive scanning of multiple continents (Azeroth, Outland, Northrend, etc.) for comprehensive zone-based triggers.
 - **PVP Status**: Conditional switches based on PVP combat status.
 
 ### User Interface & Integration
@@ -41,6 +42,7 @@ Trigger automatic set swaps based on:
 - **Event Provenance**: Detailed chat logging that identifies the specific event or manual action that triggered an equipment change.
 - **Intelligent Selection**: Clicking a set name automatically selects it for editing and ensures it is equipped so you can immediately configure its slots.
 - **Detailed Set Feedback**: Chat messages list exactly which items were updated during a manual save or automatic gear update.
+- **Searchable Zone Picker**: A dedicated, searchable, and scrollable picker UI for easily finding zones among hundreds of options.
 - **Responsive UI**: Automatically detects and repositions its panes if other UI addons (like Extended Character Stats) are present.
 
 
