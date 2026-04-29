@@ -20,6 +20,14 @@ local EVENT_TYPES = {
     { label = "Exit PvP", value = "PVP_LEAVE" },
     { label = "Enter AFK", value = "AFK_ENTER" },
     { label = "Leave AFK", value = "AFK_LEAVE" },
+    { label = "Submerge (Water)", value = "SUBMERGE" },
+    { label = "Emerge (Water)", value = "EMERGE" },
+    { label = "Join Party", value = "PARTY_JOIN" },
+    { label = "Leave Party", value = "PARTY_LEAVE" },
+    { label = "Join Raid", value = "RAID_JOIN" },
+    { label = "Leave Raid", value = "RAID_LEAVE" },
+    { label = "Enter Battleground", value = "BG_ENTER" },
+    { label = "Leave Battleground", value = "BG_LEAVE" },
 }
 
 function EqManagerEventDialog:Init()

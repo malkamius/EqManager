@@ -14,6 +14,7 @@ EqManager is inspired by the **GearQuipper** addon. While it draws inspiration f
 - **Auto-Detect Notifications**: Chat messages alert you when a partial set is detected as equipped or unequipped.
 - **Custom Sorting**: Reorder your equipment sets manually using dedicated Up/Down buttons in the main UI.
 - **Per-Character Settings**: Each character maintains its own independent configuration, including auto-update preferences and UI options.
+- **GearQuipper Import**: Seamlessly migrate all your sets, partial slots, and event bindings from GearQuipper with a single click.
 
 
 ### Equipment Queue & State Machine
@@ -25,6 +26,8 @@ EqManager is inspired by the **GearQuipper** addon. While it draws inspiration f
 Trigger automatic set swaps based on:
 - **Zone Transitions**: Entering or leaving specific zones, Battlegrounds, or Arenas.
 - **Player States**: Mounting/Dismounting, entering Stealth, or going AFK.
+- **Environment States**: Trigger swaps when Submerging or Emerging from water.
+- **Group Dynamics**: Automatically switch gear when joining or leaving a Party or Raid.
 - **Class Mechanics**: Druid Forms, Paladin Auras, Death Knight Presences, and Warrior Stances.
 - **Talent Specialization**: Automatic swaps when switching dual-specs.
 - **PVP Status**: Conditional switches based on PVP combat status.

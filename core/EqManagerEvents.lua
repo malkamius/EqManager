@@ -23,10 +23,18 @@ function EqManagerEvents:Init()
     self:RegisterEvent("UNIT_AURA")
     self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
     self:RegisterEvent("PLAYER_FLAGS_CHANGED")
+    self:RegisterEvent("SPELL_UPDATE_USABLE")
+    self:RegisterEvent("MIRROR_TIMER_START")
+    self:RegisterEvent("MIRROR_TIMER_STOP")
+    self:RegisterEvent("GROUP_ROSTER_UPDATE")
+    self:RegisterEvent("RAID_ROSTER_UPDATE")
     
     self.lastMountState = IsMounted() and not UnitOnTaxi("player")
     self.lastPvPState = UnitIsPVP("player")
     self.lastAFKState = EqManager.Data.db.LastAFKState or false
+    self.lastSubmergedState = IsSwimming()
+    self.lastPartyState = IsInGroup()
+    self.lastRaidState = IsInRaid()
 
     -- Initial state check on login/reload
     local currentAFK = UnitIsAFK("player")
@@ -61,6 +69,14 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
         PVP_LEAVE = "Leaving PvP",
         AFK_ENTER = "Entering AFK",
         AFK_LEAVE = "Leaving AFK",
+        SUBMERGE = "Submerging",
+        EMERGE = "Emerging",
+        PARTY_JOIN = "Joining Party",
+        PARTY_LEAVE = "Leaving Party",
+        RAID_JOIN = "Joining Raid",
+        RAID_LEAVE = "Leaving Raid",
+        BG_ENTER = "Entering Battleground",
+        BG_LEAVE = "Leaving Battleground",
     }
 
     local sourceStr = eventSources[eventType] or eventType
@@ -125,6 +141,22 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
         if area then
             self:EvaluateBindings("ZONE_ENTER", area)
         end
+        -- Battleground detection
+        local inBG = false
+        if C_PvP and C_PvP.IsBattleground then
+            inBG = C_PvP.IsBattleground()
+        else
+            local _, instanceType = IsInInstance()
+            inBG = (instanceType == "pvp")
+        end
+        if inBG ~= self.lastBGState then
+            self.lastBGState = inBG
+            if inBG then
+                self:EvaluateBindings("BG_ENTER")
+            else
+                self:EvaluateBindings("BG_LEAVE")
+            end
+        end
     elseif event == "UPDATE_SHAPESHIFT_FORM" then
         local form = GetShapeshiftFormID()
         if form then
@@ -184,5 +216,36 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
                 self:EvaluateBindings("AFK_LEAVE")
             end
         end
+    elseif event == "SPELL_UPDATE_USABLE" or event == "MIRROR_TIMER_START" or event == "MIRROR_TIMER_STOP" then
+        local isSubmerged = IsSwimming()
+        if isSubmerged ~= self.lastSubmergedState then
+            self.lastSubmergedState = isSubmerged
+            if isSubmerged then
+                self:EvaluateBindings("SUBMERGE")
+            else
+                self:EvaluateBindings("EMERGE")
+            end
+        end
+    elseif event == "GROUP_ROSTER_UPDATE" or event == "RAID_ROSTER_UPDATE" then
+        local isInParty = IsInGroup()
+        if isInParty ~= self.lastPartyState then
+            self.lastPartyState = isInParty
+            if isInParty then
+                self:EvaluateBindings("PARTY_JOIN")
+            else
+                self:EvaluateBindings("PARTY_LEAVE")
+            end
+        end
+
+        local isInRaid = IsInRaid()
+        if isInRaid ~= self.lastRaidState then
+            self.lastRaidState = isInRaid
+            if isInRaid then
+                self:EvaluateBindings("RAID_JOIN")
+            else
+                self:EvaluateBindings("RAID_LEAVE")
+            end
+        end
+
     end
 end

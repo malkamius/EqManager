@@ -2,7 +2,7 @@
 ## Title: EqManager
 ## Notes: Quick switch your gear sets.
 ## Author: Gemini
-## Version: 1.6.0
+## Version: 1.7.0
 ## SavedVariables: EM_DATA, EM_AUX
 
 eqmanager.lua
@@ -13,6 +13,7 @@ core\EqManagerQueue.lua
 core\EqManagerEngine.lua
 core\EqManagerBags.lua
 core\EqManagerHooks.lua
+core\EqManagerGQImport.lua
 
 ui\EqManagerPaperDoll.lua
 ui\EqManagerUI.lua

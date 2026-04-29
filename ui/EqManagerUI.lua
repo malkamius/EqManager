@@ -168,7 +168,7 @@ function EqManagerUI:CreateMainFrame()
 
     -- Set Settings Lower Frame
     local setSettingsFrame = CreateFrame("Frame", "EqManagerSetSettingsFrame", setsContainer, "BasicFrameTemplateWithInset")
-    setSettingsFrame:SetSize(340, 252)
+    setSettingsFrame:SetSize(340, 280)
     setSettingsFrame:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 5)
     if setSettingsFrame.CloseButton then setSettingsFrame.CloseButton:Hide() end
     setSettingsFrame:Hide()
@@ -327,6 +327,24 @@ function EqManagerUI:CreateMainFrame()
         EqManager.Options.ShowTooltips = self:GetChecked()
     end)
     self.cbShowTooltips = cbShowTooltips
+
+    -- GearQuipper Import Button (shown only when GQ is loaded)
+    local gqImportBtn = CreateFrame("Button", nil, setSettingsFrame, "UIPanelButtonTemplate")
+    gqImportBtn:SetSize(200, 22)
+    gqImportBtn:SetPoint("TOPLEFT", 15, -240)
+    gqImportBtn:SetText("Import GearQuipper Sets")
+    gqImportBtn:SetScript("OnClick", function()
+        EqManagerGQImport:ShowImportDialog()
+    end)
+    -- Only show if GearQuipper is available
+    gqImportBtn:SetScript("OnShow", function(self)
+        if EqManagerGQImport:IsGQAvailable() then
+            self:Show()
+        else
+            self:Hide()
+        end
+    end)
+    self.gqImportBtn = gqImportBtn
 
     self.setSettingsFrame = setSettingsFrame
     self.cbInfoPartial = cbInfoPartial

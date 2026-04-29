@@ -41,7 +41,20 @@ local function OnEvent(self, event, arg1)
         end
 
         print("|cFF00FFFFEqManager|r loaded.")
+
+        -- Disable GearQuipper if it's loaded alongside us
+        if EqManagerGQImport and EqManagerGQImport:IsGQAvailable() then
+            EqManagerGQImport:DisableGearQuipper()
+        end
+
         self:UnregisterEvent("ADDON_LOADED")
+        self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        -- Fallback: disable GQ after both addons and saved variables are fully loaded
+        if EqManagerGQImport and not EqManagerGQImport.gqDisabled and EqManagerGQImport:IsGQAvailable() then
+            EqManagerGQImport:DisableGearQuipper()
+        end
+        self:UnregisterEvent("PLAYER_ENTERING_WORLD")
     end
 end
 
