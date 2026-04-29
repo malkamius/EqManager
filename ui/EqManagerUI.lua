@@ -9,6 +9,15 @@ EqManager:RegisterModule("UI", EqManagerUI)
 function EqManagerUI:Init()
     self:CreateMainFrame()
     self:InstallRepositionHooks()
+    
+    -- Register for inventory changes to update the missing items status
+    EqManager:RegisterEvent("BAG_UPDATE")
+    EqManager:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    EqManager:HookScript("OnEvent", function(f, event, ...)
+        if self.frame and self.frame:IsVisible() and self.currentMode == "SETS" then
+            self:RefreshSetsList()
+        end
+    end)
 end
 
 function EqManagerUI:CreateMainFrame()
@@ -609,6 +618,7 @@ function EqManagerUI:RefreshSetsList()
     local yOffset = 0
     
     local currentFound = false
+    local invMap = EqManager.Bags:GetInventoryMap()
     
     for i, setName in ipairs(setNames) do
         local entry = self.setEntries[i]
@@ -625,6 +635,10 @@ function EqManagerUI:RefreshSetsList()
         else
             entry.nameText:SetText(setName)
         end
+
+        -- Check for missing items
+        local missing = EqManager.Bags:GetMissingItemsForSet(setName, invMap)
+        entry.missingItems = missing
         
         if set then
             local isChecked = false
@@ -645,8 +659,18 @@ function EqManagerUI:RefreshSetsList()
             if EqManager.Data.db.CurrentSet == setName then 
                 currentFound = true 
                 if entry.selectedTex then entry.selectedTex:Show() end
+                if missing then
+                    entry.nameText:SetTextColor(1, 0.4, 0.4) -- Light red if selected and missing
+                else
+                    entry.nameText:SetTextColor(1, 1, 1) -- White if selected
+                end
             else
                 if entry.selectedTex then entry.selectedTex:Hide() end
+                if missing then
+                    entry.nameText:SetTextColor(1, 0.2, 0.2) -- Darker red if not selected and missing
+                else
+                    entry.nameText:SetTextColor(1, 0.82, 0) -- Default gold if not selected
+                end
             end
         end
         
@@ -1021,5 +1045,19 @@ function EqManagerUI:CreateSetEntry(index)
     entry.nameText = entry:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     entry.nameText:SetPoint("LEFT", cbSelection, "RIGHT", 5, 0)
     
+    entry:SetScript("OnEnter", function(self)
+        if self.missingItems and #self.missingItems > 0 then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("|cFFFF0000Missing Items|r")
+            for _, itemName in ipairs(self.missingItems) do
+                GameTooltip:AddLine(itemName, 1, 1, 1)
+            end
+            GameTooltip:Show()
+        end
+    end)
+    entry:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+
     return entry
 end

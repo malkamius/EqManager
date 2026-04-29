@@ -156,3 +156,85 @@ function EqManagerBags:ToggleDimming(enable)
         EqManager.Hooks:RefreshBags()
     end
 end
+
+function EqManagerBags:GetInventoryMap()
+    local invMap = {}
+    
+    -- 1. Scan equipped items
+    for slotId = 1, 19 do
+        local link = GetInventoryItemLink("player", slotId)
+        if link then
+            local itemId = self:GetItemIdFromLink(link)
+            if itemId then
+                invMap[itemId] = (invMap[itemId] or 0) + 1
+            end
+        end
+    end
+    
+    -- 2. Scan bags (0-4)
+    local getNumSlots = (C_Container and C_Container.GetContainerNumSlots) or GetContainerNumSlots
+    local getLink = (C_Container and C_Container.GetContainerItemLink) or GetContainerItemLink
+    
+    for bagId = 0, 4 do
+        local numSlots = getNumSlots(bagId)
+        if numSlots then
+            for slotId = 1, numSlots do
+                local link = getLink(bagId, slotId)
+                if link then
+                    local itemId = self:GetItemIdFromLink(link)
+                    if itemId then
+                        invMap[itemId] = (invMap[itemId] or 0) + 1
+                    end
+                end
+            end
+        end
+    end
+    
+    return invMap
+end
+
+function EqManagerBags:GetMissingItemsForSet(setName, invMap)
+    local setData = EqManager.Data:GetSet(setName)
+    if not setData or not setData.slots then return nil end
+    
+    local missing = {}
+    local needed = {}
+    
+    -- Count how many of each item we need
+    for _, itemString in pairs(setData.slots) do
+        if itemString and itemString ~= "EMPTY" and itemString ~= "VALUE_NONE" and itemString ~= "$NONE" then
+            local itemId = self:GetItemIdFromLink(itemString)
+            if itemId then
+                needed[itemId] = (needed[itemId] or 0) + 1
+            end
+        end
+    end
+    
+    -- Compare with inventory map
+    local tempInv = {}
+    for id, count in pairs(invMap) do tempInv[id] = count end
+    
+    for _, itemString in pairs(setData.slots) do
+        if itemString and itemString ~= "EMPTY" and itemString ~= "VALUE_NONE" and itemString ~= "$NONE" then
+            local itemId = self:GetItemIdFromLink(itemString)
+            if itemId then
+                if not tempInv[itemId] or tempInv[itemId] <= 0 then
+                    -- Extract name from link for display
+                    local name = itemString:match("%[(.-)%]") or ("Item " .. itemId)
+                    -- Check if already in missing list to avoid duplicates
+                    local found = false
+                    for _, m in ipairs(missing) do
+                        if m == name then found = true break end
+                    end
+                    if not found then
+                        table.insert(missing, name)
+                    end
+                else
+                    tempInv[itemId] = tempInv[itemId] - 1
+                end
+            end
+        end
+    end
+    
+    return #missing > 0 and missing or nil
+end
