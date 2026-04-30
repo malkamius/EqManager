@@ -21,6 +21,8 @@ EqManager is inspired by the **GearQuipper** addon. While it draws inspiration f
 - **Safety First**: Queues equipment changes during combat, casting, or shapeshifting, executing them safely as soon as the lockdown ends.
 - **Conflict Resolution**: Handles race conditions by cancelling redundant or conflicting requests in rapid succession.
 - **Latency Aware**: Adjustable switch delays to account for home/world latency, preventing server rate-limiting.
+- **Robust Verification**: Automatically verifies equipment states after a swap, with up to 3 automatic retries if items fail to equip/unequip.
+
 
 ### Automated Event Engine
 Trigger automatic set swaps based on:

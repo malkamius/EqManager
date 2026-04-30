@@ -15,6 +15,11 @@ function EqManagerEngine:Init()
     self.lastInternalSwapTime = 0
     self.isPaused = (#(EqManager.Data.db.PendingTasks or {}) > 0)
     self.lastResumedMessageTime = 0
+    
+    self.targetState = {}
+    self.targetHelm = nil
+    self.targetCloak = nil
+    self.verificationRetryCount = 0
 
     EqManager:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
     EqManager:HookScript("OnEvent", function(f, event, ...)
@@ -189,6 +194,10 @@ function EqManagerEngine:EquipSet(setName, callback, source)
     if finalHelmValue ~= nil and finalHelmValue then ShowHelm(true) end
     if finalCloakValue ~= nil and finalCloakValue then ShowCloak(true) end
 
+    self.targetState = finalSlots
+    self.targetHelm = finalHelmValue
+    self.targetCloak = finalCloakValue
+
     local itemsToSwap = {}
     for _, slotId in ipairs(self.INVSLOTS) do
         local targetItem = finalSlots[slotId]
@@ -279,6 +288,17 @@ function EqManagerEngine:UnequipPartialSet(setName, callback, source)
         end
     end
 
+    -- Ensure all slots covered by the set being removed are accounted for.
+    -- If they aren't in the base set or other partials, they must be unequipped.
+    local setBeingRemoved = EqManager.Data:GetSet(setName)
+    if setBeingRemoved then
+        for slotId, _ in pairs(setBeingRemoved.slots) do
+            if not finalSlots[slotId] then
+                finalSlots[slotId] = "VALUE_NONE"
+            end
+        end
+    end
+
     local msg = "|cFF00FFFFEqManager|r: Unequipping partial set |cFFFFFF00" .. setName .. "|r"
     if source then
         msg = msg .. " (caused by: |cFF00FF00" .. source .. "|r)"
@@ -287,6 +307,10 @@ function EqManagerEngine:UnequipPartialSet(setName, callback, source)
 
     if finalHelmValue ~= nil then ShowHelm(finalHelmValue) end
     if finalCloakValue ~= nil then ShowCloak(finalCloakValue) end
+
+    self.targetState = finalSlots
+    self.targetHelm = finalHelmValue
+    self.targetCloak = finalCloakValue
 
     local itemsToSwap = {}
     for _, slotNum in ipairs(self.INVSLOTS) do
@@ -330,6 +354,76 @@ function EqManagerEngine:UnequipPartialSet(setName, callback, source)
     self:StartProcessingTasks(itemsToSwap, callback)
 end
 
+function EqManagerEngine:VerifySwap()
+    local mismatches = {}
+    
+    for slotId, targetItem in pairs(self.targetState) do
+        local currentlyEquippedLink = GetInventoryItemLink("player", slotId)
+        
+        local isMatch = false
+        if targetItem == "VALUE_NONE" or targetItem == "EMPTY" then
+            if currentlyEquippedLink == nil then
+                isMatch = true
+            end
+        else
+            local targetId = EqManager.Bags:GetItemIdFromLink(targetItem)
+            local targetName = targetItem:match("%[(.-)%]")
+
+            local currentId = currentlyEquippedLink and EqManager.Bags:GetItemIdFromLink(currentlyEquippedLink)
+            local currentName = currentlyEquippedLink and currentlyEquippedLink:match("%[(.-)%]")
+
+            if currentId and targetId and currentId == targetId then
+                isMatch = true
+            elseif currentName and targetName and currentName == targetName then
+                isMatch = true
+            end
+        end
+        
+        if not isMatch then
+            table.insert(mismatches, { slotId = slotId, targetItem = targetItem })
+        end
+    end
+    
+    if #mismatches > 0 then
+        if self.verificationRetryCount < 3 then
+            self.verificationRetryCount = self.verificationRetryCount + 1
+            if EqManager.Options.Debug then
+                print("|cFF00FFFFEqManager DEBUG|r: Swap verification failed for " .. #mismatches .. " items. Retrying (Attempt " .. self.verificationRetryCount .. ")...")
+            end
+            
+            -- Re-add mismatched items to tasks
+            local tasks = EqManager.Data.db.PendingTasks or {}
+            for _, m in ipairs(mismatches) do
+                table.insert(tasks, m)
+            end
+            EqManager.Data.db.PendingTasks = tasks
+            
+            -- Wait 0.5s before retrying to give the game a chance to be "free"
+            C_Timer.After(0.5, function() self:ProcessNextTask() end)
+            return
+        else
+            print("|cFF00FFFFEqManager|r: |cFFFF0000Error|r: Failed to swap some items after 3 retries.")
+            for _, m in ipairs(mismatches) do
+                 local itemName = m.targetItem:match("%[(.-)%]") or m.targetItem
+                 print("  - Slot " .. m.slotId .. ": " .. tostring(itemName))
+            end
+        end
+    end
+    
+    -- Finish
+    self.isInternalSwap = false
+    self.lastInternalSwapTime = GetTime()
+    self.targetState = {}
+    self.targetHelm = nil
+    self.targetCloak = nil
+    
+    if self.currentCallback then 
+        local cb = self.currentCallback
+        self.currentCallback = nil
+        cb() 
+    end
+end
+
 function EqManagerEngine:StartProcessingTasks(items, callback)
     if not items or #items == 0 then
         self.isInternalSwap = false
@@ -339,6 +433,7 @@ function EqManagerEngine:StartProcessingTasks(items, callback)
     end
 
     EqManager.Data.db.PendingTasks = items
+    self.verificationRetryCount = 0
     self.currentCallback = callback
     self:ProcessNextTask()
 end
@@ -346,9 +441,7 @@ end
 function EqManagerEngine:ProcessNextTask()
     local tasks = EqManager.Data.db.PendingTasks
     if not tasks or #tasks == 0 then
-        self.isInternalSwap = false
-        self.lastInternalSwapTime = GetTime()
-        if self.currentCallback then self.currentCallback() end
+        self:VerifySwap()
         return
     end
 
@@ -358,7 +451,20 @@ function EqManagerEngine:ProcessNextTask()
     end
 
     local task = table.remove(tasks, 1)
-    EquipItemByName(task.targetItem, task.slotId)
+    
+    if task.targetItem == "VALUE_NONE" or task.targetItem == "EMPTY" then
+        if GetInventoryItemLink("player", task.slotId) then
+            if EqManager.Options.Debug then
+                print("|cFF00FFFFEqManager DEBUG|r: Unequipping slot " .. task.slotId)
+            end
+            ClearCursor()
+            PickupInventoryItem(task.slotId)
+            PutItemInBackpack()
+            ClearCursor()
+        end
+    else
+        EquipItemByName(task.targetItem, task.slotId)
+    end
 
     local delay = EqManager.Options.SwapDelay or 0
     if delay > 0 then
