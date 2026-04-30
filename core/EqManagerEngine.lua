@@ -19,7 +19,7 @@ function EqManagerEngine:Init()
     self.targetState = {}
     self.targetHelm = nil
     self.targetCloak = nil
-    self.verificationRetryCount = 0
+    self.consecutiveIdleFailures = 0
 
     EqManager:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
     EqManager:HookScript("OnEvent", function(f, event, ...)
@@ -385,37 +385,63 @@ function EqManagerEngine:VerifySwap()
     end
     
     if #mismatches > 0 then
-        if self.verificationRetryCount < 3 then
-            self.verificationRetryCount = self.verificationRetryCount + 1
-            if EqManager.Options.Debug then
-                print("|cFF00FFFFEqManager DEBUG|r: Swap verification failed for " .. #mismatches .. " items. Retrying (Attempt " .. self.verificationRetryCount .. ")...")
-            end
-            
-            -- Re-add mismatched items to tasks
-            local tasks = EqManager.Data.db.PendingTasks or {}
-            for _, m in ipairs(mismatches) do
-                table.insert(tasks, m)
-            end
-            EqManager.Data.db.PendingTasks = tasks
-            
-            -- Wait 0.5s before retrying to give the game a chance to be "free"
-            C_Timer.After(0.5, function() self:ProcessNextTask() end)
-            return
-        else
-            print("|cFF00FFFFEqManager|r: |cFFFF0000Error|r: Failed to swap some items after 3 retries.")
-            for _, m in ipairs(mismatches) do
-                 local itemName = m.targetItem:match("%[(.-)%]") or m.targetItem
-                 print("  - Slot " .. m.slotId .. ": " .. tostring(itemName))
+        -- 1. Check if any mismatched item is truly missing from bags
+        for _, m in ipairs(mismatches) do
+            local loc = EqManager.Bags:GetItemLocationForSlot(m.targetItem, m.slotId)
+            if loc == "MISSING" then
+                local itemName = m.targetItem:match("%[(.-)%]") or m.targetItem
+                print("|cFF00FFFFEqManager|r: |cFFFF0000Error|r: Item |cFFFFFF00" .. itemName .. "|r is missing from your bags. Stopping swap.")
+                self:FinishSwap()
+                return
             end
         end
+
+        -- 2. Handle retries
+        local isBusy = not EqManager.Queue:CanSwitch()
+        if isBusy then
+            -- While busy (casting/smelting), we retry indefinitely on events without incrementing failures
+            if EqManager.Options.Debug then
+                print("|cFF00FFFFEqManager DEBUG|r: Verification failed while busy. Re-queuing and waiting for next event...")
+            end
+        else
+            self.consecutiveIdleFailures = self.consecutiveIdleFailures + 1
+            if self.consecutiveIdleFailures >= 10 then
+                print("|cFF00FFFFEqManager|r: |cFFFF0000Error|r: Failed to swap some items after 10 idle attempts.")
+                for _, m in ipairs(mismatches) do
+                     local itemName = m.targetItem:match("%[(.-)%]") or m.targetItem
+                     print("  - Slot " .. m.slotId .. ": " .. tostring(itemName))
+                end
+                self:FinishSwap()
+                return
+            end
+
+            if EqManager.Options.Debug then
+                print("|cFF00FFFFEqManager DEBUG|r: Verification failed while idle. Retrying (Idle Attempt " .. self.consecutiveIdleFailures .. "/10)...")
+            end
+        end
+
+        -- Re-add mismatched items to tasks
+        local tasks = EqManager.Data.db.PendingTasks or {}
+        for _, m in ipairs(mismatches) do
+            table.insert(tasks, m)
+        end
+        EqManager.Data.db.PendingTasks = tasks
+        
+        -- Call ProcessNextTask; if we are busy, it will pause and wait for the next event
+        self:ProcessNextTask()
+        return
     end
     
-    -- Finish
+    self:FinishSwap()
+end
+
+function EqManagerEngine:FinishSwap()
     self.isInternalSwap = false
     self.lastInternalSwapTime = GetTime()
     self.targetState = {}
     self.targetHelm = nil
     self.targetCloak = nil
+    self.consecutiveIdleFailures = 0
     
     if self.currentCallback then 
         local cb = self.currentCallback
@@ -433,7 +459,7 @@ function EqManagerEngine:StartProcessingTasks(items, callback)
     end
 
     EqManager.Data.db.PendingTasks = items
-    self.verificationRetryCount = 0
+    self.consecutiveIdleFailures = 0
     self.currentCallback = callback
     self:ProcessNextTask()
 end
@@ -476,13 +502,8 @@ end
 
 function EqManagerEngine:ResumeSwapping()
     if #EqManager.Data.db.PendingTasks > 0 and self.isPaused then
-        local now = GetTime()
-        if now - self.lastResumedMessageTime > 5 then
-            print("|cFF00FFFFEqManager|r: Resuming equipment swaps...")
-            self.lastResumedMessageTime = now
-        end
-        
         self.isPaused = false
+        self.needsResumeMessage = true
         
         local delay = EqManager.Options.SwapDelay or 0.25
         if delay > 0 then
@@ -502,6 +523,16 @@ end
 
 function EqManagerEngine:OnEquipmentChanged(slotId, hasItem)
     if self.isInternalSwap or (GetTime() - self.lastInternalSwapTime < 1.0) then 
+        -- Smart Messaging: Only print resume message when a swap actually succeeds
+        if self.isInternalSwap and self.needsResumeMessage then
+            local now = GetTime()
+            if now - self.lastResumedMessageTime > 5 then
+                print("|cFF00FFFFEqManager|r: Resuming equipment swaps...")
+                self.lastResumedMessageTime = now
+            end
+            self.needsResumeMessage = false
+        end
+
         self.deferredSlots = self.deferredSlots or {}
         self.deferredSlots[slotId] = true
         
