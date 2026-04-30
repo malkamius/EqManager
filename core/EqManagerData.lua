@@ -13,33 +13,33 @@ function EqManagerData:Init()
     EM_DATA = EM_DATA or {}
     EM_DATA[realm] = EM_DATA[realm] or {}
     EM_DATA[realm][char] = EM_DATA[realm][char] or {}
-    
+
     local charStore = EM_DATA[realm][char]
     self.db = charStore
-    
+
     charStore.Options = charStore.Options or {}
     self:MigrateOptions()
-    
+
     self:PerformMigrations(realm, char)
 
     charStore.Sets = charStore.Sets or {}
     charStore.Events = charStore.Events or {}
     charStore.InventoryCache = charStore.InventoryCache or {}
-    
+
     charStore.CurrentSet = charStore.CurrentSet or nil
     charStore.BaseFullSet = charStore.BaseFullSet or nil
     charStore.ActivePartialSets = charStore.ActivePartialSets or {}
     charStore.SetOrder = charStore.SetOrder or nil
     charStore.PendingTasks = charStore.PendingTasks or {}
     charStore.LastAFKState = charStore.LastAFKState or false
-    
+
     -- Expose character-specific options as EqManager.Options for easy access
     EqManager.Options = charStore.Options
 end
 
 function EqManagerData:MigrateOptions()
     local options = self.db.Options
-    
+
     -- If local options are empty but global EM_OPTIONS has data, migrate it
     -- Note: EM_OPTIONS will eventually be removed from .toc, but this handles the transition.
     if EM_OPTIONS and type(EM_OPTIONS) == "table" and not EM_OPTIONS[GetRealmName()] then
@@ -60,7 +60,7 @@ function EqManagerData:MigrateOptions()
             options.AutoUpdateCondition = "CHARACTER"
         end
     end
-    if options.SwapDelay == nil then options.SwapDelay = 0.1 end
+    if options.SwapDelay == nil then options.SwapDelay = 0.25 end
     if options.EnableBagDimming == nil then options.EnableBagDimming = false end
 end
 
@@ -77,7 +77,7 @@ function EqManagerData:PerformMigrations(realm, char)
                 local oldSlots = setData["FIELD_SLOTS"] or {}
                 local oldStates = setData["FIELD_SLOTSTATES"] or {}
                 local isPartial = setData["FIELD_OPT_PARTIAL"] or false
-                
+
                 for slotId, itemString in pairs(oldSlots) do
                     -- For partials, only preserve slots that were explicitly active
                     if not isPartial or oldStates[slotId] == nil or oldStates[slotId] == true then
@@ -119,7 +119,7 @@ function EqManagerData:PerformMigrations(realm, char)
         if _G["gearquipper_sets"][realm] and _G["gearquipper_sets"][realm][char] then
             gqSets = _G["gearquipper_sets"][realm][char]
         end
-        
+
         for setName, setData in pairs(gqSets) do
             if type(setData) == "table" and not charStore.Sets[setName] then
                 charStore.Sets[setName] = {
@@ -181,12 +181,12 @@ function EqManagerData:GetSetNames()
         end
         table.sort(full)
         table.sort(partial)
-        
+
         self.db.SetOrder = {}
         for _, name in ipairs(full) do table.insert(self.db.SetOrder, name) end
         for _, name in ipairs(partial) do table.insert(self.db.SetOrder, name) end
     end
-    
+
     -- Sync check
     local order = self.db.SetOrder
     local exists = {}
@@ -197,7 +197,7 @@ function EqManagerData:GetSetNames()
             exists[name] = true
         end
     end
-    
+
     local missing = {}
     for name, _ in pairs(self.db.Sets) do
         if not exists[name] then
@@ -217,7 +217,7 @@ end
 function EqManagerData:MoveSet(setName, direction)
     local order = self:GetSetNames() -- ensures synced
     if not order then return end
-    
+
     local idx
     for i, name in ipairs(order) do
         if name == setName then
@@ -226,10 +226,10 @@ function EqManagerData:MoveSet(setName, direction)
         end
     end
     if not idx then return end
-    
+
     local targetIdx = idx + direction
     if targetIdx < 1 or targetIdx > #order then return end
-    
+
     order[idx], order[targetIdx] = order[targetIdx], order[idx]
 end
 
@@ -329,8 +329,8 @@ function EqManagerData:AddEventAction(eventIndex, targetSet)
     if ev then
         ev.actions = ev.actions or {}
         for _, act in ipairs(ev.actions) do
-            if (type(act) == "table" and act.setName == targetSet) or (act == targetSet) then 
-                return false 
+            if (type(act) == "table" and act.setName == targetSet) or (act == targetSet) then
+                return false
             end
         end
         table.insert(ev.actions, { setName = targetSet, pvp = "ANY" })
