@@ -481,9 +481,22 @@ function EqManagerEngine:ResumeSwapping()
             print("|cFF00FFFFEqManager|r: Resuming equipment swaps...")
             self.lastResumedMessageTime = now
         end
-        self.isInternalSwap = true
+        
         self.isPaused = false
-        self:ProcessNextTask()
+        
+        local delay = EqManager.Options.SwapDelay or 0.25
+        if delay > 0 then
+            C_Timer.After(delay, function()
+                -- Ensure we are still not paused and still have tasks
+                if not self.isPaused and #EqManager.Data.db.PendingTasks > 0 then
+                    self.isInternalSwap = true
+                    self:ProcessNextTask()
+                end
+            end)
+        else
+            self.isInternalSwap = true
+            self:ProcessNextTask()
+        end
     end
 end
 
