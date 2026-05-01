@@ -30,7 +30,17 @@ function EqManagerQueue:SetCastingLockdown(state)
 end
 
 function EqManagerQueue:CanSwitch()
-    return not self.inCombat and not self.isCasting
+    if self.inCombat then return false end
+    if self.isCasting then return false end
+    
+    -- Game-state fallback check (in case events fire late)
+    local casting = UnitCastingInfo("player")
+    local channeling = UnitChannelInfo("player")
+    if casting or channeling then
+        return false
+    end
+    
+    return true
 end
 
 function EqManagerQueue:QueueSet(action, source)

@@ -13,6 +13,9 @@ function EqManagerEvents:Init()
     self:RegisterEvent("UNIT_SPELLCAST_STOP")
     self:RegisterEvent("UNIT_SPELLCAST_FAILED")
     self:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     self:RegisterEvent("ZONE_CHANGED")
     self:RegisterEvent("ZONE_CHANGED_INDOORS")
@@ -147,9 +150,10 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
     elseif event == "PLAYER_REGEN_ENABLED" then
         EqManager.Queue:SetCombatLockdown(false)
         self:EvaluateBindings("COMBAT_LEAVE")
-    elseif event == "UNIT_SPELLCAST_START" then
+    elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
         if arg1 == "player" then EqManager.Queue:SetCastingLockdown(true) end
-    elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
+    elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" or
+           event == "UNIT_SPELLCAST_CHANNEL_STOP" then
         if arg1 == "player" then EqManager.Queue:SetCastingLockdown(false) end
     elseif event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "PLAYER_ENTERING_WORLD" then
         local zone = GetRealZoneText()
