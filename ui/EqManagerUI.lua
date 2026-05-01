@@ -315,19 +315,17 @@ function EqManagerUI:CreateMainFrame()
     end)
     self.delayEdit = delayEdit
     
-    local cbBagDimming = CreateFrame("CheckButton", nil, setSettingsFrame, "ChatConfigCheckButtonTemplate")
-    cbBagDimming:SetPoint("TOPLEFT", 15, -215)
-    cbBagDimming.text = cbBagDimming:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    cbBagDimming.text:SetPoint("LEFT", cbBagDimming, "RIGHT", 5, 0)
-    cbBagDimming.text:SetText("Enable Bag Dimming")
+    local dimmingLabel = setSettingsFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    dimmingLabel:SetPoint("TOPLEFT", 15, -215)
+    dimmingLabel:SetText("Bag dimming:")
 
-    cbBagDimming:SetScript("OnClick", function(self)
-        EqManager.Bags:ToggleDimming(self:GetChecked())
-    end)
-    self.cbBagDimming = cbBagDimming
-
+    local dimmingDropdown = CreateFrame("Frame", "EqManagerDimmingDropdown", setSettingsFrame, "UIDropDownMenuTemplate")
+    dimmingDropdown:SetPoint("LEFT", dimmingLabel, "RIGHT", -10, -2)
+    UIDropDownMenu_SetWidth(dimmingDropdown, 120)
+    self.dimmingDropdown = dimmingDropdown
+    
     local cbShowTooltips = CreateFrame("CheckButton", nil, setSettingsFrame, "ChatConfigCheckButtonTemplate")
-    cbShowTooltips:SetPoint("LEFT", cbBagDimming.text, "RIGHT", 10, 0)
+    cbShowTooltips:SetPoint("TOPLEFT", 15, -240)
     cbShowTooltips.text = cbShowTooltips:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     cbShowTooltips.text:SetPoint("LEFT", cbShowTooltips, "RIGHT", 5, 0)
     cbShowTooltips.text:SetText("Show Tooltips")
@@ -340,7 +338,7 @@ function EqManagerUI:CreateMainFrame()
     -- GearQuipper Import Button (shown only when GQ is loaded)
     local gqImportBtn = CreateFrame("Button", nil, setSettingsFrame, "UIPanelButtonTemplate")
     gqImportBtn:SetSize(200, 22)
-    gqImportBtn:SetPoint("TOPLEFT", 15, -240)
+    gqImportBtn:SetPoint("TOPLEFT", 15, -265)
     gqImportBtn:SetText("Import GearQuipper Sets")
     gqImportBtn:SetScript("OnClick", function()
         EqManagerGQImport:ShowImportDialog()
@@ -793,7 +791,36 @@ function EqManagerUI:RefreshSetsList()
             UIDropDownMenu_AddButton(info)
         end
     end)
-    self.cbBagDimming:SetChecked(EqManager.Options.EnableBagDimming)
+    local dimmingModes = {
+        { text = "Disabled", value = "DISABLED" },
+        { text = "Non-Set Items", value = "NON_SET" },
+        { text = "Set Items", value = "SET" },
+    }
+
+    local currentDimMode = EqManager.Options.BagDimmingMode or "DISABLED"
+    local currentDimText = "Disabled"
+    for _, opt in ipairs(dimmingModes) do
+        if opt.value == currentDimMode then
+            currentDimText = opt.text
+            break
+        end
+    end
+
+    UIDropDownMenu_SetText(self.dimmingDropdown, currentDimText)
+    UIDropDownMenu_Initialize(self.dimmingDropdown, function(self, level)
+        local info = UIDropDownMenu_CreateInfo()
+        for _, opt in ipairs(dimmingModes) do
+            info.text = opt.text
+            info.arg1 = opt.value
+            info.func = function(self, arg1)
+                EqManager.Bags:SetDimmingMode(arg1)
+                UIDropDownMenu_SetText(EqManagerUI.dimmingDropdown, self:GetText())
+            end
+            info.checked = (opt.value == EqManager.Options.BagDimmingMode)
+            UIDropDownMenu_AddButton(info)
+        end
+    end)
+
     self.cbShowTooltips:SetChecked(EqManager.Options.ShowTooltips)
     self.setSettingsFrame:Show()
 end

@@ -43,7 +43,7 @@ Trigger automatic set swaps based on:
 - **Quick Slots**: Alt/Shift-click popups on equipment slots for lightning-fast manual swaps.
 - **Visual Feedback**: Highlights missing items (red) and equipped items (green) with clear visual cues.
 - **Missing Item Tooltips**: Set names turn red if components are missing; rich tooltips show icons and quality colors for missing pieces, with a Shift-Click option to link them to chat.
-- **Bag Dimming**: Dims items in your bags that aren't part of any saved set (Supports Baganator).
+- **Bag Dimming**: Customizable dimming modes (Disabled, Non-Set Items, or Set Items) to help organize your inventory and identify clutter. (Supports Baganator and AdiBags).
 - **Item Set Tooltips**: Displays set membership information directly on item tooltips with support for partial set indicators and membership status.
 - **Event Provenance**: Detailed chat logging that identifies the specific event or manual action that triggered an equipment change.
 - **Intelligent Selection**: Clicking a set name automatically selects it for editing and ensures it is equipped so you can immediately configure its slots.

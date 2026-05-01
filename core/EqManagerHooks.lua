@@ -18,16 +18,17 @@ function EqManagerHooks:RefreshBags()
     local function applyToButton(btn)
         if not btn or not btn:IsObjectType("Button") then return end
         
-        -- We need to determine if this button has the dimming logic applied
-        -- For Baganator, we use applyDimming (re-using the logic)
-        -- For Blizzard/AdiBags, we do the same.
+        local mode = EqManager.Options.BagDimmingMode or "DISABLED"
         
         -- Check if it's a Baganator button
         if btn.BGR then
-            if not EqManager.Options.EnableBagDimming then
+            if mode == "DISABLED" then
                 if btn.emDimmed then btn:SetAlpha(1.0); btn.emDimmed = false end
             elseif btn.BGR.itemLink then
-                if not EqManager.Bags:IsItemInAnySet(btn.BGR.itemLink) then
+                local inSet = EqManager.Bags:IsItemInAnySet(btn.BGR.itemLink)
+                local shouldDim = (mode == "NON_SET" and not inSet) or (mode == "SET" and inSet)
+                
+                if shouldDim then
                     btn:SetAlpha(0.3); btn.emDimmed = true
                 else
                     btn:SetAlpha(1.0); btn.emDimmed = false
@@ -45,12 +46,19 @@ function EqManagerHooks:RefreshBags()
             local getLink = GetContainerItemLink or (C_Container and C_Container.GetContainerItemLink)
             local link = getLink and getLink(bag, slot)
             
-            if not EqManager.Options.EnableBagDimming then
+            if mode == "DISABLED" then
                 if btn.emDimmed then btn:SetAlpha(1.0); btn.emDimmed = false end
-            elseif link and not EqManager.Bags:IsItemInAnySet(link) then
-                btn:SetAlpha(0.3); btn.emDimmed = true
+            elseif link then
+                local inSet = EqManager.Bags:IsItemInAnySet(link)
+                local shouldDim = (mode == "NON_SET" and not inSet) or (mode == "SET" and inSet)
+                
+                if shouldDim then
+                    btn:SetAlpha(0.3); btn.emDimmed = true
+                else
+                    btn:SetAlpha(1.0); btn.emDimmed = false
+                end
             else
-                btn:SetAlpha(1.0); btn.emDimmed = false
+                if btn.emDimmed then btn:SetAlpha(1.0); btn.emDimmed = false end
             end
         end
     end
@@ -109,7 +117,8 @@ end
 
 function EqManagerHooks:InstallBlizzardHooks()
     local function applyDimming(self)
-        if not EqManager.Options.EnableBagDimming then 
+        local mode = EqManager.Options.BagDimmingMode or "DISABLED"
+        if mode == "DISABLED" then 
             if self.emDimmed then
                 self:SetAlpha(1.0)
                 self.emDimmed = false
@@ -124,7 +133,10 @@ function EqManagerHooks:InstallBlizzardHooks()
         local getLink = GetContainerItemLink or (C_Container and C_Container.GetContainerItemLink)
         local link = getLink and getLink(bag, slot)
         
-        if link and not EqManager.Bags:IsItemInAnySet(link) then
+        local inSet = link and EqManager.Bags:IsItemInAnySet(link)
+        local shouldDim = (mode == "NON_SET" and not inSet) or (mode == "SET" and inSet)
+        
+        if shouldDim then
             self:SetAlpha(0.3)
             self.emDimmed = true
         else
@@ -152,7 +164,8 @@ function EqManagerHooks:InstallAdiBagsHooks()
         local itemButtonClass = AdiBags:GetClass("ItemButton")
         if itemButtonClass and itemButtonClass.prototype then
             hooksecurefunc(itemButtonClass.prototype, "UpdateAlpha", function(self)
-            if not EqManager.Options.EnableBagDimming then 
+            local mode = EqManager.Options.BagDimmingMode or "DISABLED"
+            if mode == "DISABLED" then 
                 if self.emDimmed then
                     self:SetAlpha(1.0)
                     self.emDimmed = false
@@ -160,7 +173,10 @@ function EqManagerHooks:InstallAdiBagsHooks()
                 return 
             end
             
-            if self.hasItem and not EqManager.Bags:IsItemInAnySet(self.itemLink) then
+            local inSet = self.hasItem and EqManager.Bags:IsItemInAnySet(self.itemLink)
+            local shouldDim = (mode == "NON_SET" and not inSet) or (mode == "SET" and inSet)
+            
+            if shouldDim then
                 self:SetAlpha(0.3)
                 self.emDimmed = true
             else
@@ -188,7 +204,8 @@ end
 
 function EqManagerHooks:InstallBaganatorHooks()
     local function applyDimming(self)
-        if not EqManager.Options.EnableBagDimming then 
+        local mode = EqManager.Options.BagDimmingMode or "DISABLED"
+        if mode == "DISABLED" then 
             if self.emDimmed then
                 self:SetAlpha(1.0)
                 self.emDimmed = false
@@ -197,7 +214,10 @@ function EqManagerHooks:InstallBaganatorHooks()
         end
         
         if self.BGR and self.BGR.itemLink then
-            if not EqManager.Bags:IsItemInAnySet(self.BGR.itemLink) then
+            local inSet = EqManager.Bags:IsItemInAnySet(self.BGR.itemLink)
+            local shouldDim = (mode == "NON_SET" and not inSet) or (mode == "SET" and inSet)
+            
+            if shouldDim then
                 self:SetAlpha(0.3)
                 self.emDimmed = true
             else

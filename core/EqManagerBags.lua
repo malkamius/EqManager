@@ -71,7 +71,6 @@ function EqManagerBags:GetItemIdFromLink(link)
 end
 
 function EqManagerBags:IsItemInAnySet(itemLink)
-    if not EqManager.Options.EnableBagDimming then return false end
     local itemId = self:GetItemIdFromLink(itemLink)
     if not itemId then return false end
     
@@ -150,8 +149,8 @@ function EqManagerBags:GetItemLocationForSlot(targetLink, slotId)
     return "MISSING"
 end
 
-function EqManagerBags:ToggleDimming(enable)
-    EqManager.Options.EnableBagDimming = enable
+function EqManagerBags:SetDimmingMode(mode)
+    EqManager.Options.BagDimmingMode = mode
     if EqManager.Hooks then
         EqManager.Hooks:RefreshBags()
     end

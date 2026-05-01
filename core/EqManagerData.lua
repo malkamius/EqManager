@@ -61,7 +61,14 @@ function EqManagerData:MigrateOptions()
         end
     end
     if options.SwapDelay == nil then options.SwapDelay = 0.25 end
-    if options.EnableBagDimming == nil then options.EnableBagDimming = false end
+    if options.BagDimmingMode == nil then
+        if options.EnableBagDimming == true then
+            options.BagDimmingMode = "NON_SET"
+        else
+            options.BagDimmingMode = "DISABLED"
+        end
+    end
+    options.EnableBagDimming = nil -- Cleanup legacy flag
 end
 
 function EqManagerData:PerformMigrations(realm, char)
