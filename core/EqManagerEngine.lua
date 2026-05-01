@@ -386,15 +386,23 @@ function EqManagerEngine:VerifySwap()
     
     if #mismatches > 0 then
         -- 1. Check if any mismatched item is truly missing from bags
+        local actualMismatches = {}
         for _, m in ipairs(mismatches) do
             local loc = EqManager.Bags:GetItemLocationForSlot(m.targetItem, m.slotId)
             if loc == "MISSING" then
                 local itemName = m.targetItem:match("%[(.-)%]") or m.targetItem
-                print("|cFF00FFFFEqManager|r: |cFFFF0000Error|r: Item |cFFFFFF00" .. itemName .. "|r is missing from your bags. Stopping swap.")
-                self:FinishSwap()
-                return
+                print("|cFF00FFFFEqManager|r: |cFFFF8800Warning|r: Item |cFFFFFF00" .. itemName .. "|r is missing from your bags. Skipping.")
+            else
+                table.insert(actualMismatches, m)
             end
         end
+
+        if #actualMismatches == 0 then
+            self:FinishSwap()
+            return
+        end
+        
+        mismatches = actualMismatches
 
         -- 2. Handle retries
         local isBusy = not EqManager.Queue:CanSwitch()

@@ -23,6 +23,7 @@ EqManager is inspired by the **GearQuipper** addon. While it draws inspiration f
 - **Latency Aware**: Adjustable switch delays to account for home/world latency, preventing server rate-limiting.
 - **Delayed Resumption**: Adds a safety buffer after casting or combat ends before resuming swaps, ensuring stability during rapid actions like smelting.
 - **Robust Verification**: Automatically verifies equipment states after a swap, with up to 3 automatic retries if items fail to equip/unequip.
+- **Resilient Swaps**: Skips missing items with a warning message instead of stopping the swap process, allowing available gear to equip successfully.
 
 
 ### Automated Event Engine
