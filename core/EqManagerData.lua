@@ -297,7 +297,9 @@ function EqManagerData:GetEvents()
         else
             for i, action in ipairs(ev.actions) do
                 if type(action) == "string" then
-                    ev.actions[i] = { setName = action, pvp = "ANY" }
+                    ev.actions[i] = { setName = action, pvp = "ANY", location = "ANY" }
+                else
+                    action.location = action.location or "ANY"
                 end
             end
         end
@@ -324,7 +326,7 @@ function EqManagerData:RemoveEvent(index)
     end
 end
 
-function EqManagerData:AddEventAction(eventIndex, targetSet)
+function EqManagerData:AddEventAction(eventIndex, targetSet, pvp, location)
     local ev = self.db.Events[eventIndex]
     if ev then
         ev.actions = ev.actions or {}
@@ -333,7 +335,11 @@ function EqManagerData:AddEventAction(eventIndex, targetSet)
                 return false
             end
         end
-        table.insert(ev.actions, { setName = targetSet, pvp = "ANY" })
+        table.insert(ev.actions, { 
+            setName = targetSet, 
+            pvp = pvp or "ANY", 
+            location = location or "ANY" 
+        })
         return true
     end
     return false
@@ -344,6 +350,7 @@ function EqManagerData:UpdateEventAction(eventIndex, actionIndex, actionData)
     if ev and ev.actions and ev.actions[actionIndex] then
         ev.actions[actionIndex].setName = actionData.setName or ev.actions[actionIndex].setName
         ev.actions[actionIndex].pvp = actionData.pvp or ev.actions[actionIndex].pvp
+        ev.actions[actionIndex].location = actionData.location or ev.actions[actionIndex].location
         return true
     end
     return false

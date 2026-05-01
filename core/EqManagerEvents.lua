@@ -117,12 +117,17 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
             
             if match and ev.actions then
                 local isPvP = UnitIsPVP("player")
+                local isOutland = self:IsInOutland()
                 for _, action in ipairs(ev.actions) do
                     local pvpMatch = true
                     if action.pvp == "ENABLED" and not isPvP then pvpMatch = false end
                     if action.pvp == "DISABLED" and isPvP then pvpMatch = false end
                     
-                    if pvpMatch then
+                    local locMatch = true
+                    if action.location == "OUTLAND" and not isOutland then locMatch = false end
+                    if action.location == "NON_OUTLAND" and isOutland then locMatch = false end
+
+                    if pvpMatch and locMatch then
                         EqManager.Queue:QueueSet(action.setName, sourceStr)
                     end
                 end
@@ -260,4 +265,9 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
         end
 
     end
+end
+
+function EqManagerEvents:IsInOutland()
+    local _, _, _, _, _, _, _, mapID = GetInstanceInfo()
+    return mapID == 530
 end

@@ -35,6 +35,7 @@ Trigger automatic set swaps based on:
 - **Talent Specialization**: Automatic swaps when switching dual-specs with human-readable "Primary" and "Secondary" labels.
 - **Expanded Zone Support**: Recursive scanning of multiple continents (Azeroth, Outland, Northrend, etc.) for comprehensive zone-based triggers.
 - **PVP Status**: Conditional switches based on PVP combat status.
+- **Conditional Filtering**: Specify conditions like PvP status or Location (Outland vs. Azeroth) for each individual event action.
 
 ### User Interface & Integration
 - **Character Frame Integration**: Seamlessly adds a "SETS" button and labels to the standard PaperDollFrame.
@@ -47,6 +48,7 @@ Trigger automatic set swaps based on:
 - **Intelligent Selection**: Clicking a set name automatically selects it for editing and ensures it is equipped so you can immediately configure its slots.
 - **Detailed Set Feedback**: Chat messages list exactly which items were updated during a manual save or automatic gear update.
 - **Searchable Zone Picker**: A dedicated, searchable, and scrollable picker UI for easily finding zones among hundreds of options.
+- **Refined Event Configuration**: Set PvP and Location conditions directly when adding or editing actions for an event.
 - **Responsive UI**: Automatically detects and repositions its panes if other UI addons (like Extended Character Stats) are present.
 
 

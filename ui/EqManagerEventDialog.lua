@@ -93,6 +93,56 @@ function EqManagerEventDialog:Init()
     UIDropDownMenu_SetWidth(targetDropdown, 200)
     UIDropDownMenu_SetText(targetDropdown, "Select Set")
     
+    -- PvP Filter (Action mode only)
+    local pvpLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    pvpLabel:SetPoint("TOPLEFT", 20, -90)
+    pvpLabel:SetText("PvP Filter:")
+    pvpLabel:Hide()
+
+    local pvpBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    pvpBtn:SetSize(200, 22)
+    pvpBtn:SetPoint("TOPLEFT", 25, -105)
+    pvpBtn:SetText("Any")
+    pvpBtn:Hide()
+
+    pvpBtn:SetScript("OnClick", function()
+        if params.selectedPvp == "ANY" then 
+            params.selectedPvp = "ENABLED"
+            pvpBtn:SetText("PvP Only")
+        elseif params.selectedPvp == "ENABLED" then 
+            params.selectedPvp = "DISABLED"
+            pvpBtn:SetText("Non-PvP")
+        else 
+            params.selectedPvp = "ANY"
+            pvpBtn:SetText("Any")
+        end
+    end)
+    
+    -- Location Filter (Action mode only, for Mount/Dismount)
+    local locationLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    locationLabel:SetPoint("TOPLEFT", 20, -140)
+    locationLabel:SetText("Location Filter:")
+    locationLabel:Hide()
+
+    local locationBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    locationBtn:SetSize(200, 22)
+    locationBtn:SetPoint("TOPLEFT", 25, -155)
+    locationBtn:SetText("Any")
+    locationBtn:Hide()
+
+    locationBtn:SetScript("OnClick", function()
+        if params.selectedLoc == "ANY" then 
+            params.selectedLoc = "OUTLAND"
+            locationBtn:SetText("Outland Only")
+        elseif params.selectedLoc == "OUTLAND" then 
+            params.selectedLoc = "NON_OUTLAND"
+            locationBtn:SetText("Azeroth (Non-Outland)")
+        else 
+            params.selectedLoc = "ANY"
+            locationBtn:SetText("Any")
+        end
+    end)
+
     local applyBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     applyBtn:SetSize(80, 22)
     applyBtn:SetPoint("BOTTOMLEFT", 20, 15)
@@ -101,7 +151,9 @@ function EqManagerEventDialog:Init()
     local params = {
         selectedType = nil,
         selectedSubType = nil,
-        selectedTarget = nil
+        selectedTarget = nil,
+        selectedPvp = "ANY",
+        selectedLoc = "ANY"
     }
     
     -- Zone Loading Logic
@@ -255,7 +307,7 @@ function EqManagerEventDialog:Init()
             
             local cIndex = EqManager.Data.db.CurrentEventIndex
             if cIndex then
-                local success = EqManager.Data:AddEventAction(cIndex, params.selectedTarget)
+                local success = EqManager.Data:AddEventAction(cIndex, params.selectedTarget, params.selectedPvp, params.selectedLoc)
                 if success then
                     EqManager.UI:RefreshEventActionsList()
                     frame:Hide()
@@ -380,6 +432,10 @@ function EqManagerEventDialog:Init()
     self.zonePickerBtn = zonePickerBtn
     self.helperText = helperText
     self.picker = picker
+    self.pvpLabel = pvpLabel
+    self.pvpBtn = pvpBtn
+    self.locationLabel = locationLabel
+    self.locationBtn = locationBtn
 end
 
 function EqManagerEventDialog:ShowDialog()
@@ -387,13 +443,20 @@ function EqManagerEventDialog:ShowDialog()
     self.params.selectedType = nil
     self.params.selectedSubType = nil
     self.params.selectedTarget = nil
+    self.params.selectedPvp = "ANY"
+    self.params.selectedLoc = "ANY"
     
     UIDropDownMenu_SetText(self.typeDropdown, "Select Event")
     UIDropDownMenu_SetText(self.targetDropdown, "Select Set")
+    self.pvpBtn:SetText("Any")
+    self.locationBtn:SetText("Any")
     self.subTypeBox:SetText("")
     
     if self.creatingAction then
         self.title:SetText("Add Action to Event")
+        local eIdx = EqManager.Data.db.CurrentEventIndex
+        local ev = EqManager.Data:GetEvents()[eIdx]
+
         self.typeLabel:Hide()
         self.typeDropdown:Hide()
         self.subTypeLabel:Hide()
@@ -406,8 +469,24 @@ function EqManagerEventDialog:ShowDialog()
         self.targetDropdown:Show()
         self.targetLabel:SetPoint("TOPLEFT", 20, -40)
         self.targetDropdown:SetPoint("TOPLEFT", 10, -55)
+
+        self.pvpLabel:Show()
+        self.pvpBtn:Show()
+        self.pvpLabel:SetPoint("TOPLEFT", 20, -90)
+        self.pvpBtn:SetPoint("TOPLEFT", 25, -105)
+
+        if ev and (ev.type == "MOUNT" or ev.type == "DISMOUNT") then
+            self.locationLabel:Show()
+            self.locationBtn:Show()
+            self:SetHeight(250)
+        else
+            self.locationLabel:Hide()
+            self.locationBtn:Hide()
+            self:SetHeight(200)
+        end
     else
         self.title:SetText("Create Event Shell")
+        self:SetHeight(250)
         self.typeLabel:Show()
         self.typeDropdown:Show()
         
@@ -418,6 +497,11 @@ function EqManagerEventDialog:ShowDialog()
         self.subTypeDropdown:Hide()
         self.zonePickerBtn:Hide()
         self.helperText:Hide()
+
+        self.pvpLabel:Hide()
+        self.pvpBtn:Hide()
+        self.locationLabel:Hide()
+        self.locationBtn:Hide()
     end
     
     self:Show()

@@ -408,7 +408,7 @@ function EqManagerUI:CreateMainFrame()
     
     -- Event Actions Lower Frame
     local actionSettingsFrame = CreateFrame("Frame", "EqManagerActionFrame", eventsContainer, "BasicFrameTemplateWithInset")
-    actionSettingsFrame:SetSize(340, 212)
+    actionSettingsFrame:SetSize(340, 245)
     actionSettingsFrame:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 5)
     if actionSettingsFrame.CloseButton then actionSettingsFrame.CloseButton:Hide() end
     actionSettingsFrame:Hide()
@@ -418,7 +418,7 @@ function EqManagerUI:CreateMainFrame()
     actionSettingsFrame.title:SetText("Event Actions")
 
     local actBorder = CreateFrame("Frame", nil, actionSettingsFrame, "BackdropTemplate")
-    actBorder:SetSize(307, 85)
+    actBorder:SetSize(300, 85)
     actBorder:SetPoint("TOPLEFT", 10, -35)
     actBorder:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -477,11 +477,36 @@ function EqManagerUI:CreateMainFrame()
             EqManager.UI:RefreshEventActionsList()
         end
     end)
+
+    local locLabel = details:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    locLabel:SetPoint("TOPLEFT", 190, -45)
+    locLabel:SetText("Location:")
+    self.actionLocationLabel = locLabel
+
+    local locBtn = CreateFrame("Button", nil, details, "UIPanelButtonTemplate")
+    locBtn:SetSize(90, 22)
+    locBtn:SetPoint("TOPLEFT", 195, -60)
+    self.actionLocationBtn = locBtn
+
+    locBtn:SetScript("OnClick", function()
+        local eIdx = EqManager.Data.db.CurrentEventIndex
+        local aIdx = EqManager.Data.db.CurrentActionIndex
+        if eIdx and aIdx then
+            local ev = EqManager.Data:GetEvents()[eIdx]
+            local act = ev.actions[aIdx]
+            local nextState = "ANY"
+            if act.location == "ANY" then nextState = "OUTLAND"
+            elseif act.location == "OUTLAND" then nextState = "NON_OUTLAND"
+            end
+            EqManager.Data:UpdateEventAction(eIdx, aIdx, { location = nextState })
+            EqManager.UI:RefreshEventActionsList()
+        end
+    end)
     
     local addActionBtn = CreateFrame("Button", nil, actionSettingsFrame, "UIPanelButtonTemplate")
-    addActionBtn:SetSize(90, 22)
-    addActionBtn:SetPoint("BOTTOMRIGHT", actionSettingsFrame, "BOTTOMRIGHT", -15, 10)
-    addActionBtn:SetText("Add action...")
+    addActionBtn:SetSize(22, 22)
+    addActionBtn:SetPoint("TOPLEFT", actBorder, "TOPRIGHT", 5, 0)
+    addActionBtn:SetText("+")
     addActionBtn:SetScript("OnClick", function()
         if EqManager.EventDialog and EqManager.Data.db.CurrentEventIndex then
             EqManager.EventDialog.creatingAction = true
@@ -873,6 +898,10 @@ function EqManagerUI:RefreshEventActionsList()
         if act.pvp == "ENABLED" then label = label .. " |cFF00FF00(PvP)|r"
         elseif act.pvp == "DISABLED" then label = label .. " |cFFFF0000(NoPvP)|r"
         end
+
+        if act.location == "OUTLAND" then label = label .. " |cFF00FFFF[Outland]|r"
+        elseif act.location == "NON_OUTLAND" then label = label .. " |cFFFFFF00[Azeroth]|r"
+        end
         entry.nameText:SetText(label)
         
         if EqManager.Data.db.CurrentActionIndex == i then
@@ -937,6 +966,19 @@ function EqManagerUI:RefreshActionDetails()
     elseif act.pvp == "DISABLED" then pvpLabel = "Non-PvP"
     end
     self.actionPvpBtn:SetText(pvpLabel)
+
+    if ev.type == "MOUNT" or ev.type == "DISMOUNT" then
+        self.actionLocationLabel:Show()
+        self.actionLocationBtn:Show()
+        local locLabelText = "Any"
+        if act.location == "OUTLAND" then locLabelText = "Outland"
+        elseif act.location == "NON_OUTLAND" then locLabelText = "Non-Outland"
+        end
+        self.actionLocationBtn:SetText(locLabelText)
+    else
+        self.actionLocationLabel:Hide()
+        self.actionLocationBtn:Hide()
+    end
 end
 
 function EqManagerUI:CreateActionEntry()
