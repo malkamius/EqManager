@@ -32,6 +32,13 @@ local EVENT_TYPES = {
 
 function EqManagerEventDialog:Init()
     local frame = self
+    local params = {
+        selectedType = nil,
+        selectedSubType = nil,
+        selectedTarget = nil,
+        selectedPvp = "ANY",
+        selectedLoc = "ANY"
+    }
     frame:SetSize(300, 250)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetFrameStrata("DIALOG")
@@ -148,13 +155,6 @@ function EqManagerEventDialog:Init()
     applyBtn:SetPoint("BOTTOMLEFT", 20, 15)
     applyBtn:SetText("Apply")
     
-    local params = {
-        selectedType = nil,
-        selectedSubType = nil,
-        selectedTarget = nil,
-        selectedPvp = "ANY",
-        selectedLoc = "ANY"
-    }
     
     -- Zone Loading Logic
     local function GetZoneChildrenSorted()
