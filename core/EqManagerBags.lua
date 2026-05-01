@@ -219,15 +219,16 @@ function EqManagerBags:GetMissingItemsForSet(setName, invMap)
             local itemId = self:GetItemIdFromLink(itemString)
             if itemId then
                 if not tempInv[itemId] or tempInv[itemId] <= 0 then
-                    -- Extract name from link for display
-                    local name = itemString:match("%[(.-)%]") or ("Item " .. itemId)
                     -- Check if already in missing list to avoid duplicates
                     local found = false
                     for _, m in ipairs(missing) do
-                        if m == name then found = true break end
+                        if self:GetItemIdFromLink(m) == itemId then 
+                            found = true 
+                            break 
+                        end
                     end
                     if not found then
-                        table.insert(missing, name)
+                        table.insert(missing, itemString)
                     end
                 else
                     tempInv[itemId] = tempInv[itemId] - 1

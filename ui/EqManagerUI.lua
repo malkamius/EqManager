@@ -1023,6 +1023,25 @@ function EqManagerUI:CreateSetEntry(index)
     entry:SetSize(260, 25)
     
     entry:SetScript("OnClick", function(self)
+        if IsShiftKeyDown() and self.missingItems and #self.missingItems > 0 then
+            local chatFrame = ChatEdit_GetActiveWindow()
+            if chatFrame and chatFrame:IsVisible() then
+                for _, itemRef in ipairs(self.missingItems) do
+                    local _, link = GetItemInfo(itemRef)
+                    if link then
+                        chatFrame:Insert(link .. " ")
+                    end
+                end
+            else
+                print("|cFF00FFFFEqManager|r: Missing items for |cFFFFFF00" .. self.setName .. "|r:")
+                for _, itemRef in ipairs(self.missingItems) do
+                    local _, link = GetItemInfo(itemRef)
+                    print("  - " .. (link or itemRef))
+                end
+            end
+            return
+        end
+
         EqManager.Data.db.CurrentSet = self.setName
         
         local isBase = (EqManager.Data.db.BaseFullSet == self.setName)
@@ -1091,9 +1110,24 @@ function EqManagerUI:CreateSetEntry(index)
         if self.missingItems and #self.missingItems > 0 then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText("|cFFFF0000Missing Items|r")
-            for _, itemName in ipairs(self.missingItems) do
-                GameTooltip:AddLine(itemName, 1, 1, 1)
+            GameTooltip:AddLine("The following items are missing from your bags:", 1, 0.82, 0, true)
+            GameTooltip:AddLine(" ")
+            
+            for _, itemRef in ipairs(self.missingItems) do
+                local name, link, quality, _, _, _, _, _, _, texture = GetItemInfo(itemRef)
+                if name then
+                    local r, g, b = GetItemQualityColor(quality)
+                    local icon = "|T" .. (texture or "Interface\\Icons\\INV_Misc_QuestionMark") .. ":16:16:0:0:64:64:4:60:4:60|t"
+                    GameTooltip:AddLine(icon .. " " .. name, r, g, b)
+                else
+                    -- Fallback for items not in cache
+                    local fallbackName = itemRef:match("%[(.-)%]") or ("Item " .. (itemRef:match("item:(%d+)") or itemRef))
+                    GameTooltip:AddLine("|TInterface\\Icons\\INV_Misc_QuestionMark:16:16:0:0:64:64:4:60:4:60|t " .. fallbackName, 0.7, 0.7, 0.7)
+                end
             end
+            
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("|cFF00FF00<Shift-Click to link missing items to chat>|r", 1, 1, 1)
             GameTooltip:Show()
         end
     end)

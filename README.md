@@ -41,7 +41,7 @@ Trigger automatic set swaps based on:
 - **Character Frame Integration**: Seamlessly adds a "SETS" button and labels to the standard PaperDollFrame.
 - **Quick Slots**: Alt/Shift-click popups on equipment slots for lightning-fast manual swaps.
 - **Visual Feedback**: Highlights missing items (red) and equipped items (green) with clear visual cues.
-- **Missing Item Highlighting**: Set names in the list turn red if items are missing from your bags, with a detailed tooltip listing the missing pieces.
+- **Missing Item Tooltips**: Set names turn red if components are missing; rich tooltips show icons and quality colors for missing pieces, with a Shift-Click option to link them to chat.
 - **Bag Dimming**: Dims items in your bags that aren't part of any saved set (Supports Baganator).
 - **Item Set Tooltips**: Displays set membership information directly on item tooltips with support for partial set indicators and membership status.
 - **Event Provenance**: Detailed chat logging that identifies the specific event or manual action that triggered an equipment change.
