@@ -262,8 +262,12 @@ function EqManagerHooks:InstallTooltipHooks()
         local name, link = tooltip:GetItem()
         if not link then return end
         
+        -- Ensure it's an equippable item
+        if not IsEquippableItem(link) then return end
+        
         local _, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfo(link)
-        if not itemEquipLoc or itemEquipLoc == "" then return end
+        -- Exclude non-character slots (Bags, Quivers) and empty locs
+        if not itemEquipLoc or itemEquipLoc == "" or itemEquipLoc == "INVTYPE_BAG" or itemEquipLoc == "INVTYPE_QUIVER" then return end
         
         local sets = EqManager.Bags:GetSetsForItem(link)
         if sets and #sets > 0 then
