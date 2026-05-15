@@ -33,6 +33,7 @@ Trigger automatic set swaps based on:
 - **Environment States**: Trigger swaps when Submerging or Emerging from water.
 - **Group Dynamics**: Automatically switch gear when joining or leaving a Party or Raid.
 - **Class Mechanics**: Druid Forms, Paladin Auras, Death Knight Presences, and Warrior Stances.
+- **Form-Specific Exit Triggers**: Bind actions to leaving specific shapeshift forms (e.g., Flight Form) using precise form IDs.
 - **Talent Specialization**: Automatic swaps when switching dual-specs with human-readable "Primary" and "Secondary" labels.
 - **Expanded Zone Support**: Recursive scanning of multiple continents (Azeroth, Outland, Northrend, etc.) for comprehensive zone-based triggers.
 - **PVP Status**: Conditional switches based on PVP combat status.

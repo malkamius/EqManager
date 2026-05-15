@@ -33,6 +33,7 @@ function EqManagerEvents:Init()
     self:RegisterEvent("RAID_ROSTER_UPDATE")
     
     self.lastMountState = IsMounted() and not UnitOnTaxi("player")
+    self.lastFormID = GetShapeshiftFormID()
     self.lastPvPState = UnitIsPVP("player")
     self.lastAFKState = EqManager.Data.db.LastAFKState or false
     self.lastSubmergedState = IsSwimming()
@@ -52,6 +53,18 @@ function EqManagerEvents:Init()
     end
     
     self:SetScript("OnEvent", self.OnSystemEvent)
+end
+
+function EqManagerEvents:CheckMountState()
+    local isMounted = IsMounted() and not UnitOnTaxi("player")
+    if isMounted ~= self.lastMountState then
+        self.lastMountState = isMounted
+        if isMounted then
+            self:EvaluateBindings("MOUNT")
+        else
+            self:EvaluateBindings("DISMOUNT")
+        end
+    end
 end
 
 function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
@@ -89,6 +102,8 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
             sourceStr = "Entering " .. eventSubType
         elseif eventType == "SHAPESHIFT" then
             sourceStr = "Shapeshift: " .. eventSubType
+        elseif eventType == "SHAPESHIFT_OUT" then
+            sourceStr = "Leave Shapeshift: " .. eventSubType
         elseif eventType == "SPEC_CHANGED" then
             local specName = (eventSubType == "1") and "Primary" or (eventSubType == "2" and "Secondary" or eventSubType)
             sourceStr = "Spec Change: " .. specName
@@ -179,12 +194,20 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
             end
         end
     elseif event == "UPDATE_SHAPESHIFT_FORM" then
+        self:CheckMountState() -- Catch dismounts during instant shifts
         local form = GetShapeshiftFormID()
-        if form then
-            -- Note: For simplicity, passing string representation. Users can map specific IDs or Names.
-            self:EvaluateBindings("SHAPESHIFT", tostring(form))
-        else
-            self:EvaluateBindings("SHAPESHIFT_OUT")
+        if form ~= self.lastFormID then
+            if form then
+                -- Entering a form
+                self:EvaluateBindings("SHAPESHIFT", tostring(form))
+            elseif self.lastFormID then
+                -- Leaving a form to humanoid
+                self:EvaluateBindings("SHAPESHIFT_OUT", tostring(self.lastFormID))
+            else
+                -- Fallback for first-time or unknown state
+                self:EvaluateBindings("SHAPESHIFT_OUT")
+            end
+            self.lastFormID = form
         end
     elseif event == "UPDATE_STEALTH" then
         local isStealthed = IsStealthed()
@@ -195,16 +218,7 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
         end
     elseif event == "UNIT_AURA" or event == "PLAYER_MOUNT_DISPLAY_CHANGED" then
         if event == "UNIT_AURA" and arg1 ~= "player" then return end
-        
-        local isMounted = IsMounted() and not UnitOnTaxi("player")
-        if isMounted ~= self.lastMountState then
-            self.lastMountState = isMounted
-            if isMounted then
-                self:EvaluateBindings("MOUNT")
-            else
-                self:EvaluateBindings("DISMOUNT")
-            end
-        end
+        self:CheckMountState()
     elseif event == "ACTIVE_TALENT_GROUP_CHANGED" then
         local currentSpec
         if C_SpecializationInfo and C_SpecializationInfo.GetActiveSpecGroup then

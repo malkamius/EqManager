@@ -11,6 +11,7 @@ local EVENT_TYPES = {
     { label = "Leave Combat", value = "COMBAT_LEAVE" },
     { label = "Enter Zone", value = "ZONE_ENTER" },
     { label = "Shapeshift / Stance", value = "SHAPESHIFT" },
+    { label = "Leave Shapeshift", value = "SHAPESHIFT_OUT" },
     { label = "Enter Stealth", value = "STEALTH_ENTER" },
     { label = "Leave Stealth", value = "STEALTH_LEAVE" },
     { label = "Mount", value = "MOUNT" },
@@ -225,6 +226,13 @@ function EqManagerEventDialog:Init()
                     subTypeBox:Show()
                     subTypeBox:SetText("")
                     helperText:SetText("Enter form ID (e.g., 1, 2, 3...)")
+                    helperText:Show()
+                elseif ev.value == "SHAPESHIFT_OUT" then
+                    subTypeLabel:Show()
+                    subTypeDropdown:Hide()
+                    subTypeBox:Show()
+                    subTypeBox:SetText("")
+                    helperText:SetText("Enter form ID that was lost (e.g., 29 for Flight Form)")
                     helperText:Show()
                 elseif ev.value == "SPEC_CHANGED" then
                     subTypeLabel:Show()
