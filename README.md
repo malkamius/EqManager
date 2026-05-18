@@ -33,6 +33,7 @@ Trigger automatic set swaps based on:
 - **Environment States**: Trigger swaps when Submerging or Emerging from water.
 - **Group Dynamics**: Automatically switch gear when joining or leaving a Party or Raid.
 - **Class Mechanics**: Druid Forms, Paladin Auras, Death Knight Presences, and Warrior Stances.
+- **Action-Level Stance Filters**: Specify fine-grained Druid/Warrior/Priest form filters for individual actions on any Shapeshift or Leave Shapeshift trigger.
 - **Form-Specific Exit Triggers**: Bind actions to leaving specific shapeshift forms (e.g., Flight Form) using precise form IDs.
 - **Talent Specialization**: Automatic swaps when switching dual-specs with human-readable "Primary" and "Secondary" labels.
 - **Expanded Zone Support**: Recursive scanning of multiple continents (Azeroth, Outland, Northrend, etc.) for comprehensive zone-based triggers.
@@ -51,6 +52,7 @@ Trigger automatic set swaps based on:
 - **Detailed Set Feedback**: Chat messages list exactly which items were updated during a manual save or automatic gear update.
 - **Searchable Zone Picker**: A dedicated, searchable, and scrollable picker UI for easily finding zones among hundreds of options.
 - **Refined Event Configuration**: Set PvP and Location conditions directly when adding or editing actions for an event.
+- **Dynamic Stance Dropdowns**: Configure stance filters directly via a dynamic player-spellbook-aware dropdown when editing event actions, with a manual numeric input fallback.
 - **Responsive UI**: Automatically detects and repositions its panes if other UI addons (like Extended Character Stats) are present.
 
 

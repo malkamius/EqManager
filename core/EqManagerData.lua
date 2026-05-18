@@ -171,6 +171,53 @@ function EqManagerData:PerformMigrations(realm, char)
             end
         end
     end
+
+    -- 4. Migrate Event-level SHAPESHIFT/SHAPESHIFT_OUT conditions to Action-level conditions,
+    --    and merge duplicate SHAPESHIFT/SHAPESHIFT_OUT events.
+    if charStore.Events then
+        local mergedShapeshift = nil
+        local mergedShapeshiftOut = nil
+        local newEvents = {}
+
+        for _, ev in ipairs(charStore.Events) do
+            if ev.type == "SHAPESHIFT" then
+                if not mergedShapeshift then
+                    mergedShapeshift = { type = "SHAPESHIFT", actions = {} }
+                    table.insert(newEvents, mergedShapeshift)
+                end
+                local cond = ev.subType or "ANY"
+                if ev.actions then
+                    for _, act in ipairs(ev.actions) do
+                        if type(act) == "table" then
+                            act.stance = act.stance or cond
+                        elseif type(act) == "string" then
+                            act = { setName = act, pvp = "ANY", location = "ANY", stance = cond }
+                        end
+                        table.insert(mergedShapeshift.actions, act)
+                    end
+                end
+            elseif ev.type == "SHAPESHIFT_OUT" then
+                if not mergedShapeshiftOut then
+                    mergedShapeshiftOut = { type = "SHAPESHIFT_OUT", actions = {} }
+                    table.insert(newEvents, mergedShapeshiftOut)
+                end
+                local cond = ev.subType or "ANY"
+                if ev.actions then
+                    for _, act in ipairs(ev.actions) do
+                        if type(act) == "table" then
+                            act.stance = act.stance or cond
+                        elseif type(act) == "string" then
+                            act = { setName = act, pvp = "ANY", location = "ANY", stance = cond }
+                        end
+                        table.insert(mergedShapeshiftOut.actions, act)
+                    end
+                end
+            else
+                table.insert(newEvents, ev)
+            end
+        end
+        charStore.Events = newEvents
+    end
 end
 
 -- Sets Data API
@@ -298,15 +345,16 @@ function EqManagerData:GetEvents()
         if not ev.actions then
             ev.actions = {}
             if ev.setName then
-                table.insert(ev.actions, { setName = ev.setName, pvp = "ANY" })
+                table.insert(ev.actions, { setName = ev.setName, pvp = "ANY", location = "ANY", stance = "ANY" })
                 ev.setName = nil
             end
         else
             for i, action in ipairs(ev.actions) do
                 if type(action) == "string" then
-                    ev.actions[i] = { setName = action, pvp = "ANY", location = "ANY" }
+                    ev.actions[i] = { setName = action, pvp = "ANY", location = "ANY", stance = "ANY" }
                 else
                     action.location = action.location or "ANY"
+                    action.stance = action.stance or "ANY"
                 end
             end
         end
@@ -333,19 +381,20 @@ function EqManagerData:RemoveEvent(index)
     end
 end
 
-function EqManagerData:AddEventAction(eventIndex, targetSet, pvp, location)
+function EqManagerData:AddEventAction(eventIndex, targetSet, pvp, location, stance)
     local ev = self.db.Events[eventIndex]
     if ev then
         ev.actions = ev.actions or {}
         for _, act in ipairs(ev.actions) do
-            if (type(act) == "table" and act.setName == targetSet) or (act == targetSet) then
+            if type(act) == "table" and act.setName == targetSet and act.pvp == (pvp or "ANY") and act.location == (location or "ANY") and act.stance == (stance or "ANY") then
                 return false
             end
         end
         table.insert(ev.actions, { 
             setName = targetSet, 
             pvp = pvp or "ANY", 
-            location = location or "ANY" 
+            location = location or "ANY",
+            stance = stance or "ANY"
         })
         return true
     end
@@ -358,6 +407,7 @@ function EqManagerData:UpdateEventAction(eventIndex, actionIndex, actionData)
         ev.actions[actionIndex].setName = actionData.setName or ev.actions[actionIndex].setName
         ev.actions[actionIndex].pvp = actionData.pvp or ev.actions[actionIndex].pvp
         ev.actions[actionIndex].location = actionData.location or ev.actions[actionIndex].location
+        ev.actions[actionIndex].stance = actionData.stance or ev.actions[actionIndex].stance
         return true
     end
     return false

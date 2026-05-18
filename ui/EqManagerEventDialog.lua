@@ -220,20 +220,11 @@ function EqManagerEventDialog:Init()
                     zonePickerBtn:SetText(params.selectedSubType or "Select Zone...")
                     helperText:SetText("Current zone: " .. (GetRealZoneText() or ""))
                     helperText:Show()
-                elseif ev.value == "SHAPESHIFT" then
-                    subTypeLabel:Show()
+                elseif ev.value == "SHAPESHIFT" or ev.value == "SHAPESHIFT_OUT" then
+                    subTypeLabel:Hide()
                     subTypeDropdown:Hide()
-                    subTypeBox:Show()
-                    subTypeBox:SetText("")
-                    helperText:SetText("Enter form ID (e.g., 1, 2, 3...)")
-                    helperText:Show()
-                elseif ev.value == "SHAPESHIFT_OUT" then
-                    subTypeLabel:Show()
-                    subTypeDropdown:Hide()
-                    subTypeBox:Show()
-                    subTypeBox:SetText("")
-                    helperText:SetText("Enter form ID that was lost (e.g., 29 for Flight Form)")
-                    helperText:Show()
+                    subTypeBox:Hide()
+                    helperText:Hide()
                 elseif ev.value == "SPEC_CHANGED" then
                     subTypeLabel:Show()
                     subTypeBox:Hide()
@@ -269,6 +260,94 @@ function EqManagerEventDialog:Init()
                     UIDropDownMenu_SetSelectedID(subTypeDropdown, self:GetID())
                     UIDropDownMenu_SetText(subTypeDropdown, specInfo.name)
                     params.selectedSubType = specInfo.value
+                end
+                UIDropDownMenu_AddButton(info)
+            end
+        elseif params.selectedType == nil and EqManagerEventDialog.creatingAction then
+            local eIdx = EqManager.Data.db.CurrentEventIndex
+            local ev = eIdx and EqManager.Data:GetEvents()[eIdx]
+            if ev and (ev.type == "SHAPESHIFT" or ev.type == "SHAPESHIFT_OUT") then
+                -- Add "Any" option
+                info.text = "Any"
+                info.value = "ANY"
+                info.checked = function() return params.selectedSubType == "ANY" or params.selectedSubType == nil end
+                info.func = function(self)
+                    UIDropDownMenu_SetSelectedID(subTypeDropdown, self:GetID())
+                    UIDropDownMenu_SetText(subTypeDropdown, "Any")
+                    params.selectedSubType = "ANY"
+                    params.isCustomForm = false
+                    subTypeBox:Hide()
+                    helperText:Hide()
+                end
+                UIDropDownMenu_AddButton(info)
+
+                local addedForms = {}
+
+                -- 1. Add class-specific standard stances
+                local _, playerClass = UnitClass("player")
+                local classForms = EqManager.CLASS_STANCES[playerClass]
+                if classForms then
+                    for _, form in ipairs(classForms) do
+                        local formIDStr = tostring(form.id)
+                        addedForms[formIDStr] = true
+                        
+                        info.text = form.name .. " (" .. formIDStr .. ")"
+                        info.value = formIDStr
+                        info.checked = function() return params.selectedSubType == formIDStr and not params.isCustomForm end
+                        info.func = function(self)
+                            UIDropDownMenu_SetSelectedID(subTypeDropdown, self:GetID())
+                            UIDropDownMenu_SetText(subTypeDropdown, form.name)
+                            params.selectedSubType = formIDStr
+                            params.isCustomForm = false
+                            subTypeBox:Hide()
+                            helperText:Hide()
+                        end
+                        UIDropDownMenu_AddButton(info)
+                    end
+                end
+
+                -- 2. Add dynamically learned stances
+                if GetNumShapeshiftForms and GetShapeshiftFormInfo then
+                    local numStances = GetNumShapeshiftForms()
+                    for i = 1, numStances do
+                        local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(i)
+                        if name then
+                            local formID = EqManager:GetFormIDFromStanceInfo(name, texture, spellID)
+                            if formID then
+                                local formIDStr = tostring(formID)
+                                if not addedForms[formIDStr] then
+                                    addedForms[formIDStr] = true
+                                    info.text = name .. " (" .. formIDStr .. ")"
+                                    info.value = formIDStr
+                                    info.checked = function() return params.selectedSubType == formIDStr and not params.isCustomForm end
+                                    info.func = function(self)
+                                        UIDropDownMenu_SetSelectedID(subTypeDropdown, self:GetID())
+                                        UIDropDownMenu_SetText(subTypeDropdown, name)
+                                        params.selectedSubType = formIDStr
+                                        params.isCustomForm = false
+                                        subTypeBox:Hide()
+                                        helperText:Hide()
+                                    end
+                                    UIDropDownMenu_AddButton(info)
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- Add Custom option
+                info.text = "Custom..."
+                info.value = "CUSTOM"
+                info.checked = function() return params.isCustomForm end
+                info.func = function(self)
+                    UIDropDownMenu_SetSelectedID(subTypeDropdown, self:GetID())
+                    UIDropDownMenu_SetText(subTypeDropdown, "Custom...")
+                    params.isCustomForm = true
+                    params.selectedSubType = subTypeBox:GetText()
+                    subTypeBox:Show()
+                    subTypeBox:SetText(params.selectedSubType or "")
+                    helperText:SetText("Enter form ID (e.g., 1, 2, 3...)")
+                    helperText:Show()
                 end
                 UIDropDownMenu_AddButton(info)
             end
@@ -315,7 +394,17 @@ function EqManagerEventDialog:Init()
             
             local cIndex = EqManager.Data.db.CurrentEventIndex
             if cIndex then
-                local success = EqManager.Data:AddEventAction(cIndex, params.selectedTarget, params.selectedPvp, params.selectedLoc)
+                local ev = EqManager.Data:GetEvents()[cIndex]
+                local stance = "ANY"
+                if ev.type == "SHAPESHIFT" or ev.type == "SHAPESHIFT_OUT" then
+                    if subTypeBox:IsVisible() then
+                        stance = subTypeBox:GetText()
+                    else
+                        stance = params.selectedSubType or "ANY"
+                    end
+                end
+
+                local success = EqManager.Data:AddEventAction(cIndex, params.selectedTarget, params.selectedPvp, params.selectedLoc, stance)
                 if success then
                     EqManager.UI:RefreshEventActionsList()
                     frame:Hide()
@@ -486,6 +575,27 @@ function EqManagerEventDialog:ShowDialog()
         if ev and (ev.type == "MOUNT" or ev.type == "DISMOUNT") then
             self.locationLabel:Show()
             self.locationBtn:Show()
+            self:SetHeight(250)
+        elseif ev and (ev.type == "SHAPESHIFT" or ev.type == "SHAPESHIFT_OUT") then
+            self.locationLabel:Hide()
+            self.locationBtn:Hide()
+            
+            self.subTypeLabel:SetText("Stance Filter:")
+            self.subTypeLabel:Show()
+            self.subTypeLabel:SetPoint("TOPLEFT", 20, -140)
+            
+            self.subTypeDropdown:Show()
+            self.subTypeDropdown:SetPoint("TOPLEFT", 10, -155)
+            UIDropDownMenu_SetText(self.subTypeDropdown, "Any")
+            self.params.selectedSubType = "ANY"
+            self.params.isCustomForm = false
+            
+            self.subTypeBox:Hide()
+            self.subTypeBox:SetPoint("TOPLEFT", 25, -155)
+            self.subTypeBox:SetSize(160, 20)
+            
+            self.helperText:Hide()
+            
             self:SetHeight(250)
         else
             self.locationLabel:Hide()

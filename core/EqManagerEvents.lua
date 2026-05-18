@@ -101,9 +101,9 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
         if eventType == "ZONE_ENTER" then
             sourceStr = "Entering " .. eventSubType
         elseif eventType == "SHAPESHIFT" then
-            sourceStr = "Shapeshift: " .. eventSubType
+            sourceStr = "Shapeshift: " .. EqManager:GetFormNameByID(eventSubType)
         elseif eventType == "SHAPESHIFT_OUT" then
-            sourceStr = "Leave Shapeshift: " .. eventSubType
+            sourceStr = "Leave Shapeshift: " .. EqManager:GetFormNameByID(eventSubType)
         elseif eventType == "SPEC_CHANGED" then
             local specName = (eventSubType == "1") and "Primary" or (eventSubType == "2" and "Secondary" or eventSubType)
             sourceStr = "Spec Change: " .. specName
@@ -145,7 +145,14 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
                     if action.location == "OUTLAND" and not isOutland then locMatch = false end
                     if action.location == "NON_OUTLAND" and isOutland then locMatch = false end
 
-                    if pvpMatch and locMatch then
+                    local stanceMatch = true
+                    if (eventType == "SHAPESHIFT" or eventType == "SHAPESHIFT_OUT") and action.stance and action.stance ~= "ANY" and action.stance ~= "" then
+                        if string.lower(eventSubType or "") ~= string.lower(action.stance) then
+                            stanceMatch = false
+                        end
+                    end
+
+                    if pvpMatch and locMatch and stanceMatch then
                         EqManager.Queue:QueueSet(action.setName, sourceStr)
                     end
                 end

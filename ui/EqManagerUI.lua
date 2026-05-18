@@ -512,6 +512,16 @@ function EqManagerUI:CreateMainFrame()
         end
     end)
     
+    local stanceLabel = details:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    stanceLabel:SetPoint("TOPLEFT", 5, -45)
+    stanceLabel:SetText("Stance Filter:")
+    self.actionStanceLabel = stanceLabel
+
+    local stanceDropdown = CreateFrame("Frame", "EqManagerActionStanceDropdown", details, "UIDropDownMenuTemplate")
+    stanceDropdown:SetPoint("TOPLEFT", -15, -55)
+    UIDropDownMenu_SetWidth(stanceDropdown, 160)
+    self.actionStanceDropdown = stanceDropdown
+    
     self.actionSettingsFrame = actionSettingsFrame
     
     local disableEvtsBtn = CreateFrame("CheckButton", nil, eventsContainer, "ChatConfigCheckButtonTemplate")
@@ -929,6 +939,16 @@ function EqManagerUI:RefreshEventActionsList()
         if act.location == "OUTLAND" then label = label .. " |cFF00FFFF[Outland]|r"
         elseif act.location == "NON_OUTLAND" then label = label .. " |cFFFFFF00[Azeroth]|r"
         end
+
+        if ev.type == "SHAPESHIFT" or ev.type == "SHAPESHIFT_OUT" then
+            local stanceVal = act.stance or "ANY"
+            if stanceVal ~= "ANY" then
+                local friendlyName = EqManager:GetFormNameByID(stanceVal)
+                label = label .. " |cFFFFD100{" .. friendlyName .. "}|r"
+            else
+                label = label .. " |cFFFFD100{Any Form}|r"
+            end
+        end
         entry.nameText:SetText(label)
         
         if EqManager.Data.db.CurrentActionIndex == i then
@@ -1005,6 +1025,94 @@ function EqManagerUI:RefreshActionDetails()
     else
         self.actionLocationLabel:Hide()
         self.actionLocationBtn:Hide()
+    end
+
+    if ev.type == "SHAPESHIFT" or ev.type == "SHAPESHIFT_OUT" then
+        self.actionStanceLabel:Show()
+        self.actionStanceDropdown:Show()
+        
+        local currentStance = act.stance or "ANY"
+        local displayStance = currentStance
+        if currentStance == "ANY" then
+            displayStance = "Any"
+        else
+            displayStance = EqManager:GetFormNameByID(currentStance)
+        end
+        UIDropDownMenu_SetText(self.actionStanceDropdown, displayStance)
+        
+        UIDropDownMenu_Initialize(self.actionStanceDropdown, function(self, level)
+            local info = UIDropDownMenu_CreateInfo()
+            
+            -- Any Option
+            info.text = "Any"
+            info.checked = (currentStance == "ANY")
+            info.func = function()
+                EqManager.Data:UpdateEventAction(eIdx, aIdx, { stance = "ANY" })
+                EqManager.UI:RefreshEventActionsList()
+            end
+            UIDropDownMenu_AddButton(info)
+            
+            local addedForms = {}
+            
+            -- 1. Add class-specific standard stances
+            local _, playerClass = UnitClass("player")
+            local classForms = EqManager.CLASS_STANCES[playerClass]
+            if classForms then
+                for _, form in ipairs(classForms) do
+                    local formIDStr = tostring(form.id)
+                    addedForms[formIDStr] = true
+                    
+                    info.text = form.name .. " (" .. formIDStr .. ")"
+                    info.checked = (currentStance == formIDStr)
+                    info.func = function()
+                        EqManager.Data:UpdateEventAction(eIdx, aIdx, { stance = formIDStr })
+                        EqManager.UI:RefreshEventActionsList()
+                    end
+                    UIDropDownMenu_AddButton(info)
+                end
+            end
+            
+            -- 2. Add dynamically learned stances
+            if GetNumShapeshiftForms and GetShapeshiftFormInfo then
+                local numStances = GetNumShapeshiftForms()
+                for i = 1, numStances do
+                    local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(i)
+                    if name then
+                        local formID = EqManager:GetFormIDFromStanceInfo(name, texture, spellID)
+                        if formID then
+                            local formIDStr = tostring(formID)
+                            if not addedForms[formIDStr] then
+                                addedForms[formIDStr] = true
+                                info.text = name .. " (" .. formIDStr .. ")"
+                                info.checked = (currentStance == formIDStr)
+                                info.func = function()
+                                    EqManager.Data:UpdateEventAction(eIdx, aIdx, { stance = formIDStr })
+                                    EqManager.UI:RefreshEventActionsList()
+                                end
+                                UIDropDownMenu_AddButton(info)
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Custom Option
+            info.text = "Custom..."
+            info.checked = (currentStance ~= "ANY" and not EqManager.FORM_ID_NAMES[tonumber(currentStance) or -1])
+            info.func = function()
+                local popup = StaticPopup_Show("EQMANAGER_CUSTOM_STANCE_POPUP")
+                if popup then
+                    local editBox = popup.editBox or _G[popup:GetName().."EditBox"]
+                    if editBox then
+                        editBox:SetText(currentStance == "ANY" and "" or currentStance)
+                    end
+                end
+            end
+            UIDropDownMenu_AddButton(info)
+        end)
+    else
+        self.actionStanceLabel:Hide()
+        self.actionStanceDropdown:Hide()
     end
 end
 
@@ -1164,3 +1272,40 @@ function EqManagerUI:CreateSetEntry(index)
 
     return entry
 end
+
+StaticPopupDialogs["EQMANAGER_CUSTOM_STANCE_POPUP"] = {
+    text = "Enter Custom Stance/Form ID:",
+    button1 = "Accept",
+    button2 = "Cancel",
+    hasEditBox = 1,
+    maxLetters = 10,
+    OnAccept = function(self)
+        local editBox = self.editBox or _G[self:GetName().."EditBox"]
+        local val = editBox and editBox:GetText()
+        if val and val ~= "" then
+            local eIdx = EqManager.Data.db.CurrentEventIndex
+            local aIdx = EqManager.Data.db.CurrentActionIndex
+            if eIdx and aIdx then
+                EqManager.Data:UpdateEventAction(eIdx, aIdx, { stance = val })
+                EqManager.UI:RefreshEventActionsList()
+            end
+        end
+    end,
+    EditBoxOnEnterPressed = function(self)
+        local parent = self:GetParent()
+        local editBox = parent.editBox or _G[parent:GetName().."EditBox"]
+        local val = editBox and editBox:GetText()
+        if val and val ~= "" then
+            local eIdx = EqManager.Data.db.CurrentEventIndex
+            local aIdx = EqManager.Data.db.CurrentActionIndex
+            if eIdx and aIdx then
+                EqManager.Data:UpdateEventAction(eIdx, aIdx, { stance = val })
+                EqManager.UI:RefreshEventActionsList()
+            end
+        end
+        parent:Hide()
+    end,
+    ShowDelay = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
