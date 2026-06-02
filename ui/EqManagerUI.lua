@@ -536,12 +536,15 @@ end
 
 -- Finds the rightmost visible frame within the CharacterFrame subtree
 -- (e.g. Extended Character Stats, DejaCharacterStats, ElvUI panels, or even
--- Blizzard's own CharacterStatsPane).  Returns the right-edge pixel position
--- so EqManager can position itself just past it.
+-- Blizzard's own CharacterStatsPane) that is contiguous with the CharacterFrame.
+-- Returns the right-edge pixel position so EqManager can position itself just past it.
 function EqManagerUI:FindRightmostCharacterPanel()
     if not CharacterFrame then return nil end
 
-    local bestRight = CharacterFrame:GetRight() or 0
+    local baseRight = CharacterFrame:GetRight()
+    if not baseRight then return nil end
+
+    local candidates = {}
 
     -- Recursively walk every descendant of CharacterFrame.
     -- We skip our own frame subtree and quickslot bars.
@@ -559,10 +562,15 @@ function EqManagerUI:FindRightmostCharacterPanel()
 
                 if not isQuickbar
                    and child.IsVisible and child:IsVisible()
-                   and child.GetRight then
+                   and child.GetLeft and child.GetRight then
+                    local left = child:GetLeft()
                     local right = child:GetRight()
-                    if right and right > bestRight then
-                        bestRight = right
+                    if left and right and right > baseRight then
+                        table.insert(candidates, {
+                            frame = child,
+                            left = left,
+                            right = right
+                        })
                     end
                 end
 
@@ -572,7 +580,29 @@ function EqManagerUI:FindRightmostCharacterPanel()
     end
 
     scanDescendants(CharacterFrame)
-    return bestRight
+
+    -- Sort candidates by their left edge in ascending order
+    table.sort(candidates, function(a, b)
+        return a.left < b.left
+    end)
+
+    local currentRight = baseRight
+    local maxGap = 40 -- Threshold (in UI units) to determine a large gap
+
+    for _, c in ipairs(candidates) do
+        if c.left <= currentRight + maxGap then
+            if c.right > currentRight then
+                currentRight = c.right
+            end
+        else
+            -- Since candidates are sorted by left edge, any subsequent candidate
+            -- will have left >= c.left, which is also > currentRight + maxGap.
+            -- So we can break here as the contiguous chain is broken.
+            break
+        end
+    end
+
+    return currentRight
 end
 
 function EqManagerUI:SetDynamicPosition()
