@@ -1,8 +1,8 @@
-## Interface: 20505
+## Interface: 11508
 ## Title: EqManager
 ## Notes: Quick switch your gear sets.
 ## Author: Gemini
-## Version: 1.17.1
+## Version: 1.17.2
 ## SavedVariables: EM_DATA, EM_AUX
 
 eqmanager.lua
