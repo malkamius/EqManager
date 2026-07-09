@@ -162,7 +162,7 @@ function EqManagerHooks:InstallAdiBagsHooks()
         if not AdiBags then return end
         
         local itemButtonClass = AdiBags:GetClass("ItemButton")
-        if itemButtonClass and itemButtonClass.prototype then
+        if itemButtonClass and itemButtonClass.prototype and itemButtonClass.prototype.UpdateAlpha then
             hooksecurefunc(itemButtonClass.prototype, "UpdateAlpha", function(self)
             local mode = EqManager.Options.BagDimmingMode or "DISABLED"
             if mode == "DISABLED" then 
@@ -233,24 +233,24 @@ function EqManagerHooks:InstallBaganatorHooks()
     end
 
     -- Hook Classic Mixins
-    if BaganatorClassicLiveContainerItemButtonMixin then
+    if BaganatorClassicLiveContainerItemButtonMixin and BaganatorClassicLiveContainerItemButtonMixin.SetItemDetails then
         hooksecurefunc(BaganatorClassicLiveContainerItemButtonMixin, "SetItemDetails", applyDimming)
     end
-    if BaganatorClassicCachedItemButtonMixin then
+    if BaganatorClassicCachedItemButtonMixin and BaganatorClassicCachedItemButtonMixin.SetItemDetails then
         hooksecurefunc(BaganatorClassicCachedItemButtonMixin, "SetItemDetails", applyDimming)
     end
-    if BaganatorClassicLiveGuildItemButtonMixin then
+    if BaganatorClassicLiveGuildItemButtonMixin and BaganatorClassicLiveGuildItemButtonMixin.SetItemDetails then
         hooksecurefunc(BaganatorClassicLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
     end
 
     -- Hook Retail Mixins (Modern engine addons often use these)
-    if BaganatorRetailLiveContainerItemButtonMixin then
+    if BaganatorRetailLiveContainerItemButtonMixin and BaganatorRetailLiveContainerItemButtonMixin.SetItemDetails then
         hooksecurefunc(BaganatorRetailLiveContainerItemButtonMixin, "SetItemDetails", applyDimming)
     end
-    if BaganatorRetailCachedItemButtonMixin then
+    if BaganatorRetailCachedItemButtonMixin and BaganatorRetailCachedItemButtonMixin.SetItemDetails then
         hooksecurefunc(BaganatorRetailCachedItemButtonMixin, "SetItemDetails", applyDimming)
     end
-    if BaganatorRetailLiveGuildItemButtonMixin then
+    if BaganatorRetailLiveGuildItemButtonMixin and BaganatorRetailLiveGuildItemButtonMixin.SetItemDetails then
         hooksecurefunc(BaganatorRetailLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
     end
 end
