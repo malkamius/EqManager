@@ -232,26 +232,42 @@ function EqManagerHooks:InstallBaganatorHooks()
         end
     end
 
-    -- Hook Classic Mixins
-    if BaganatorClassicLiveContainerItemButtonMixin and BaganatorClassicLiveContainerItemButtonMixin.SetItemDetails then
-        hooksecurefunc(BaganatorClassicLiveContainerItemButtonMixin, "SetItemDetails", applyDimming)
-    end
-    if BaganatorClassicCachedItemButtonMixin and BaganatorClassicCachedItemButtonMixin.SetItemDetails then
-        hooksecurefunc(BaganatorClassicCachedItemButtonMixin, "SetItemDetails", applyDimming)
-    end
-    if BaganatorClassicLiveGuildItemButtonMixin and BaganatorClassicLiveGuildItemButtonMixin.SetItemDetails then
-        hooksecurefunc(BaganatorClassicLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
-    end
+    if Baganator and Baganator.API and Baganator.API.RegisterCornerWidget then
+        Baganator.API.RegisterCornerWidget("EqManagerDimming", "EqManager Dimming", 
+            function(cornerFrame, item)
+                return false
+            end,
+            function(itemButton)
+                if itemButton.SetItemDetails then
+                    hooksecurefunc(itemButton, "SetItemDetails", applyDimming)
+                end
+                -- Create a hidden dummy texture to satisfy RegisterCornerWidget's return expectation
+                local dummy = itemButton:CreateTexture(nil, "OVERLAY")
+                dummy:Hide()
+                return dummy
+            end,
+            { default_position = "top_left" }
+        )
+    else
+        -- Fallback to the old mixin hooks if API is not available
+        local function safeHookMixin(mixin, methodName, hookFunc)
+            if mixin and mixin[methodName] then
+                local isFrozen = false
+                if table.isfrozen then
+                    isFrozen = table.isfrozen(mixin)
+                end
+                if not isFrozen then
+                    hooksecurefunc(mixin, methodName, hookFunc)
+                end
+            end
+        end
 
-    -- Hook Retail Mixins (Modern engine addons often use these)
-    if BaganatorRetailLiveContainerItemButtonMixin and BaganatorRetailLiveContainerItemButtonMixin.SetItemDetails then
-        hooksecurefunc(BaganatorRetailLiveContainerItemButtonMixin, "SetItemDetails", applyDimming)
-    end
-    if BaganatorRetailCachedItemButtonMixin and BaganatorRetailCachedItemButtonMixin.SetItemDetails then
-        hooksecurefunc(BaganatorRetailCachedItemButtonMixin, "SetItemDetails", applyDimming)
-    end
-    if BaganatorRetailLiveGuildItemButtonMixin and BaganatorRetailLiveGuildItemButtonMixin.SetItemDetails then
-        hooksecurefunc(BaganatorRetailLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
+        safeHookMixin(BaganatorClassicLiveContainerItemButtonMixin, "SetItemDetails", applyDimming)
+        safeHookMixin(BaganatorClassicCachedItemButtonMixin, "SetItemDetails", applyDimming)
+        safeHookMixin(BaganatorClassicLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
+        safeHookMixin(BaganatorRetailLiveContainerItemButtonMixin, "SetItemDetails", applyDimming)
+        safeHookMixin(BaganatorRetailCachedItemButtonMixin, "SetItemDetails", applyDimming)
+        safeHookMixin(BaganatorRetailLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
     end
 end
 
