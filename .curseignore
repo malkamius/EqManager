@@ -31,3 +31,8 @@ AdiBags/
 AdiBags_Config/
 Baganator/
 AdiBags/README.md
+
+# Local validation files
+tests/
+scratch/
+.test-deps/

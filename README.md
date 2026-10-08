@@ -58,3 +58,23 @@ Trigger automatic set swaps based on:
 
 ### Compatibility
 - Specifically tailored and tested for **Burning Crusade (TBC) Classic**.
+
+
+### Client API compatibility
+Item and bag operations use a shared capability layer (`EqManager.API`), preferring
+namespaced APIs and falling back to legacy globals. Item tooltips use
+`TooltipDataProcessor` when available and legacy scripts otherwise. Removed helm
+and cloak visibility functions are skipped; appearance changes on these clients
+must be managed through the game's transmog UI. Saved visibility settings remain intact.
+Shapeshift menus normalize old and new return formats. Unsupported events are
+skipped, and Retail specialization changes are handled alongside Classic talent groups.
+The addon already uses `BackdropTemplate`; its existing dropdowns remain in use.
+
+These changes do not certify every client or guarantee future patch compatibility.
+The TOC interface versions must match the client being released for. Combat checks
+apply to queued and quickslot swaps; server restrictions still apply.
+
+Before releasing on a new client, enable Lua errors and verify login/reload,
+full and partial sets, missing items, quickslots, tooltip membership, bag dimming,
+form and specialization events, and a queued swap resumed after combat.
+Run `lua tests/compatibility.lua` with Lua 5.1 or newer for mocked API checks.

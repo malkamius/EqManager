@@ -6,6 +6,61 @@
 EqManager = CreateFrame("Frame", "EqManagerFrame", UIParent)
 EqManager.modules = {}
 
+-- Resolve capabilities rather than assuming a particular client version.
+EqManager.API = {}
+local API = EqManager.API
+function API.GetItemInfo(item)
+    local fn = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    if fn then return fn(item) end
+end
+function API.IsEquippableItem(item)
+    local fn = (C_Item and C_Item.IsEquippableItem) or IsEquippableItem
+    return fn and fn(item) or false
+end
+function API.GetContainerNumSlots(bag)
+    local fn = (C_Container and C_Container.GetContainerNumSlots) or GetContainerNumSlots
+    return fn and fn(bag) or 0
+end
+function API.GetContainerItemLink(bag, slot)
+    local fn = (C_Container and C_Container.GetContainerItemLink) or GetContainerItemLink
+    if fn then return fn(bag, slot) end
+end
+function API.EquipItemByName(item, slot)
+    if InCombatLockdown() then return false end
+    local fn = (C_Item and C_Item.EquipItemByName) or EquipItemByName
+    if not fn then return false end
+    fn(item, slot)
+    return true
+end
+function API.ShowHelm(value)
+    if ShowHelm then ShowHelm(value) end
+end
+function API.ShowCloak(value)
+    if ShowCloak then ShowCloak(value) end
+end
+-- Older clients return a name as the second value; newer clients return isActive.
+function API.GetShapeshiftFormInfo(index)
+    local texture, second, third, fourth, fifth = GetShapeshiftFormInfo(index)
+    if type(second) == "string" then return texture, second, third, fourth, fifth end
+    local spellID = fourth
+    local name
+    if C_Spell and C_Spell.GetSpellInfo then
+        local info = C_Spell.GetSpellInfo(spellID)
+        name = info and info.name
+    elseif GetSpellInfo then
+        name = GetSpellInfo(spellID)
+    end
+    return texture, name, second, third, spellID
+end
+function API.RegisterEvent(frame, event)
+    -- Event availability differs across Classic and Retail.
+    if C_EventUtils and C_EventUtils.IsEventValid then
+        if C_EventUtils.IsEventValid(event) then frame:RegisterEvent(event) end
+    else
+        pcall(frame.RegisterEvent, frame, event)
+    end
+end
+
 EqManager.SPELL_TO_FORM_ID = {
     [768]   = 1,   -- Cat Form
     [33891] = 2,   -- Tree of Life
@@ -137,7 +192,7 @@ function EqManager:GetFormNameByID(formID)
     if GetNumShapeshiftForms and GetShapeshiftFormInfo then
         local numStances = GetNumShapeshiftForms()
         for i = 1, numStances do
-            local texture, name, _, _, spellID = GetShapeshiftFormInfo(i)
+            local texture, name, _, _, spellID = EqManager.API.GetShapeshiftFormInfo(i)
             if name then
                 local mappedID = self:GetFormIDFromStanceInfo(name, texture, spellID)
                 if mappedID and tostring(mappedID) == idStr then

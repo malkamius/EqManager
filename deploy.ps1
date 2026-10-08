@@ -1,4 +1,7 @@
-# PowerShell script to deploy the addon to the WoW directory
+# Deploy the addon to every configured WoW client.
+[CmdletBinding()]
+param([switch]$DryRun)
+$ErrorActionPreference = 'Stop'
 $SourceDir = $PSScriptRoot
 
 # Find the .toc file in the directory
@@ -19,56 +22,51 @@ if ($titleLine -match "^\s*##\s*Title:\s*(.*)") {
 # WoW requires the addon directory name to exactly match the .toc filename (BaseName)
 $addonName = $tocFile.BaseName
 
-# --- Resolve WoW AddOns path ---
-$defaultWowPath = "C:\Program Files (x86)\World of Warcraft\_anniversary_\Interface\AddOns"
-$wowPathsFile   = Join-Path $SourceDir "wow_paths.json"
-$wowAddonsPath  = $null
-
-if (Test-Path $wowPathsFile) {
-    try {
-        $config = Get-Content $wowPathsFile -Raw | ConvertFrom-Json
-        if ($config.wowAddonPath) {
-            if (Test-Path $config.wowAddonPath) {
-                $wowAddonsPath = $config.wowAddonPath
-                Write-Host "Using WoW AddOns path from wow_paths.json: $wowAddonsPath" -ForegroundColor Cyan
-            } else {
-                Write-Host "Path in wow_paths.json not found: $($config.wowAddonPath)" -ForegroundColor Yellow
-                Write-Host "Falling back to default path..." -ForegroundColor Yellow
-            }
+# Resolve all destinations before modifying any installation.
+$wowPathsFile = Join-Path $SourceDir "wow_paths.json"
+$wowAddonPaths = @()
+if (Test-Path -LiteralPath $wowPathsFile) {
+    $config = Get-Content -LiteralPath $wowPathsFile -Raw | ConvertFrom-Json
+    if ($config.wowAddonPaths) {
+        $wowAddonPaths = @($config.wowAddonPaths)
+    } elseif ($config.wowAddonPath) {
+        # Keep older single-client configurations working.
+        $wowAddonPaths = @($config.wowAddonPath)
+    }
+}
+if ($wowAddonPaths.Count -eq 0) {
+    $wowRoot = "C:\Program Files (x86)\World of Warcraft"
+    $wowAddonPaths = @(
+        (Join-Path $wowRoot "_anniversary_\Interface\AddOns"),
+        (Join-Path $wowRoot "_classic_beta_\Interface\AddOns")
+    )
+}
+$targetDirs = @()
+foreach ($path in ($wowAddonPaths | Select-Object -Unique)) {
+    if (-not (Test-Path -LiteralPath $path -PathType Container)) {
+        throw "WoW AddOns folder not found: $path. Update wow_paths.json."
+    }
+    $addonsRoot = (Resolve-Path -LiteralPath $path).ProviderPath.TrimEnd('\')
+    if ((Split-Path $addonsRoot -Leaf) -ne 'AddOns') {
+        throw "Destination must be an AddOns folder: $addonsRoot"
+    }
+    $targetDir = [IO.Path]::GetFullPath((Join-Path $addonsRoot $addonName))
+    if ([IO.Path]::GetDirectoryName($targetDir) -ne $addonsRoot -or
+        (Split-Path $targetDir -Leaf) -ne $addonName -or $targetDir -eq $SourceDir) {
+        throw "Unsafe deployment target: $targetDir"
+    }
+    if (Test-Path -LiteralPath $targetDir) {
+        $targetItem = Get-Item -LiteralPath $targetDir
+        if (-not $targetItem.PSIsContainer -or
+            ($targetItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "Deployment target must be a normal directory: $targetDir"
         }
-    } catch {
-        Write-Host "Could not parse wow_paths.json: $_" -ForegroundColor Yellow
-        Write-Host "Falling back to default path..." -ForegroundColor Yellow
+        if (Get-ChildItem -LiteralPath $targetDir -Recurse -Force |
+            Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }) {
+            throw "Deployment target contains a link or junction: $targetDir"
+        }
     }
-}
-
-if (-not $wowAddonsPath) {
-    if (Test-Path $defaultWowPath) {
-        $wowAddonsPath = $defaultWowPath
-        Write-Host "Using default WoW AddOns path: $wowAddonsPath" -ForegroundColor Cyan
-    } else {
-        Write-Host "" 
-        Write-Host "Error: Could not find the WoW AddOns folder." -ForegroundColor Red
-        Write-Host "  Checked wow_paths.json : $(if (Test-Path $wowPathsFile) { (Get-Content $wowPathsFile -Raw | ConvertFrom-Json).wowAddonPath } else { '(file not found)' })" -ForegroundColor Red
-        Write-Host "  Checked default path   : $defaultWowPath" -ForegroundColor Red
-        Write-Host ""
-        Write-Host "Fix: Edit wow_paths.json and set 'wowAddonPath' to your WoW AddOns folder." -ForegroundColor Yellow
-        Write-Host "Example: { `"wowAddonPath`": `"D:\\Games\\World of Warcraft\\_anniversary_\\Interface\\AddOns`" }" -ForegroundColor Yellow
-        exit 1
-    }
-}
-
-$TargetDir = Join-Path $wowAddonsPath $addonName
-Write-Host "Deploying addon '$addonName' to: $TargetDir" -ForegroundColor Cyan
-
-# Ensure the destination directory exists
-if (!(Test-Path $TargetDir)) {
-    Write-Host "Creating target directory..." -ForegroundColor Yellow
-    New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
-} else {
-    # CLEANUP: Remove everything in the target directory before deploying
-    Write-Host "Cleaning target directory: $TargetDir" -ForegroundColor Yellow
-    Get-ChildItem -Path $TargetDir -Recurse | Remove-Item -Force -Recurse
+    $targetDirs += $targetDir
 }
 
 # --- Build ignore patterns from .gitignore and .curseignore ---
@@ -81,7 +79,7 @@ function Add-IgnoreFile($ignorePath) {
         $lines = Get-Content $ignorePath | Where-Object { $_ -match '\S' -and $_ -notmatch '^\s*#' }
         foreach ($line in $lines) {
             $line = $line.Trim().Replace('\', '/')
-            
+
             $isWhitelist = $line.StartsWith('!')
             if ($isWhitelist) { $line = $line.Substring(1) }
 
@@ -149,17 +147,42 @@ foreach ($file in $allFiles) {
     }
 }
 
-foreach ($file in $filesToCopy) {
-    $fullSourcePath = Join-Path $SourceDir $file
-    $fullTargetPath = Join-Path $TargetDir $file
-
-    $targetParentDir = Split-Path $fullTargetPath
-    if (!(Test-Path $targetParentDir)) {
-        New-Item -ItemType Directory -Force -Path $targetParentDir | Out-Null
+function Get-ContentHash($filePath) {
+    if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) {
+        return (Get-FileHash -LiteralPath $filePath).Hash
     }
-
-    Write-Host "Copying $file..."
-    Copy-Item -Path $fullSourcePath -Destination $fullTargetPath -Force
+    $bytes = [System.IO.File]::ReadAllBytes($filePath)
+    $hasher = [System.Security.Cryptography.SHA256]::Create()
+    $hashBytes = $hasher.ComputeHash($bytes)
+    return [System.BitConverter]::ToString($hashBytes).Replace('-', '')
 }
 
-Write-Host "Deployment successful!" -ForegroundColor Green
+foreach ($targetDir in $targetDirs) {
+    Write-Host "Deploying '$addonName' to: $targetDir ($($filesToCopy.Count) files)" -ForegroundColor Cyan
+    if ($DryRun) { continue }
+    if (Test-Path -LiteralPath $targetDir) {
+        # Only the validated addon directory is replaced; other addons and WTF are untouched.
+        Get-ChildItem -LiteralPath $targetDir -Force |
+            Remove-Item -Force -Recurse
+    } else {
+        New-Item -ItemType Directory -Path $targetDir | Out-Null
+    }
+    foreach ($file in $filesToCopy) {
+        $fullSourcePath = Join-Path $SourceDir $file
+        $fullTargetPath = Join-Path $targetDir $file
+        $targetParentDir = Split-Path $fullTargetPath
+        if (-not (Test-Path -LiteralPath $targetParentDir)) {
+            New-Item -ItemType Directory -Force -Path $targetParentDir | Out-Null
+        }
+        Copy-Item -LiteralPath $fullSourcePath -Destination $fullTargetPath -Force
+        if ((Get-ContentHash $fullSourcePath) -ne (Get-ContentHash $fullTargetPath)) {
+            throw "Deployment verification failed: $fullTargetPath"
+        }
+    }
+    Write-Host "Verified deployment: $targetDir" -ForegroundColor Green
+}
+if ($DryRun) {
+    Write-Host "Dry run successful. No files changed." -ForegroundColor Green
+} else {
+    Write-Host "Deployment successful for all $($targetDirs.Count) clients!" -ForegroundColor Green
+}

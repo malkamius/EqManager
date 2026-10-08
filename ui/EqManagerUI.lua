@@ -1106,7 +1106,7 @@ function EqManagerUI:RefreshActionDetails()
             if GetNumShapeshiftForms and GetShapeshiftFormInfo then
                 local numStances = GetNumShapeshiftForms()
                 for i = 1, numStances do
-                    local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(i)
+                    local texture, name, isActive, isCastable, spellID = EqManager.API.GetShapeshiftFormInfo(i)
                     if name then
                         local formID = EqManager:GetFormIDFromStanceInfo(name, texture, spellID)
                         if formID then
@@ -1192,7 +1192,7 @@ function EqManagerUI:CreateSetEntry(index)
             local chatFrame = ChatEdit_GetActiveWindow()
             if chatFrame and chatFrame:IsVisible() then
                 for _, itemRef in ipairs(self.missingItems) do
-                    local _, link = GetItemInfo(itemRef)
+                    local _, link = EqManager.API.GetItemInfo(itemRef)
                     if link then
                         chatFrame:Insert(link .. " ")
                     end
@@ -1200,7 +1200,7 @@ function EqManagerUI:CreateSetEntry(index)
             else
                 print("|cFF00FFFFEqManager|r: Missing items for |cFFFFFF00" .. self.setName .. "|r:")
                 for _, itemRef in ipairs(self.missingItems) do
-                    local _, link = GetItemInfo(itemRef)
+                    local _, link = EqManager.API.GetItemInfo(itemRef)
                     print("  - " .. (link or itemRef))
                 end
             end
@@ -1279,7 +1279,7 @@ function EqManagerUI:CreateSetEntry(index)
             GameTooltip:AddLine(" ")
             
             for _, itemRef in ipairs(self.missingItems) do
-                local name, link, quality, _, _, _, _, _, _, texture = GetItemInfo(itemRef)
+                local name, link, quality, _, _, _, _, _, _, texture = EqManager.API.GetItemInfo(itemRef)
                 if name then
                     local r, g, b = GetItemQualityColor(quality)
                     local icon = "|T" .. (texture or "Interface\\Icons\\INV_Misc_QuestionMark") .. ":16:16:0:0:64:64:4:60:4:60|t"

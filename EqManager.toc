@@ -1,8 +1,8 @@
-## Interface: 11508, 20505
+## Interface: 11508, 11509, 16001, 20506
 ## Title: EqManager
 ## Notes: Quick switch your gear sets.
 ## Author: Gemini
-## Version: 1.17.4
+## Version: 1.17.5
 ## SavedVariables: EM_DATA, EM_AUX
 ## OptionalDeps: Baganator, AdiBags
 

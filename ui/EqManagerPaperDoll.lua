@@ -11,13 +11,27 @@ function EqManagerPaperDoll:Init()
     self.INVSLOTS = EqManager.INVSLOTS
     self.slotBoxes = {}
 
-    -- Hook the main frame
-    if PaperDollFrame then
-        PaperDollFrame:HookScript("OnShow", function()
+    self:AttachCharacterFrames()
+    -- Modern clients load Blizzard_CharacterUI on demand, after our ADDON_LOADED.
+    self.characterLoader = CreateFrame("Frame")
+    self.characterLoader:RegisterEvent("ADDON_LOADED")
+    self.characterLoader:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self.characterLoader:SetScript("OnUpdate", function(frame, elapsed)
+        frame.checkElapsed = (frame.checkElapsed or 0) + elapsed
+        if frame.checkElapsed < 0.25 then return end
+        frame.checkElapsed = 0
+        -- Also catch character windows whose frames are created after ADDON_LOADED.
+        if PaperDollFrame and PaperDollFrame:IsShown() and (not self.btn or not self.btn:IsShown()) then
+            self:AttachCharacterFrames()
             self:InjectButton()
-            self:UpdateHighlights()
-        end)
-    end
+        end
+    end)
+    self.characterLoader:SetScript("OnEvent", function()
+        self:AttachCharacterFrames()
+        if self.paperDollHooked and self.characterFrameHooked then
+            self.characterLoader:UnregisterAllEvents()
+        end
+    end)
 
     EqManager:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
     EqManager:RegisterEvent("BAG_UPDATE")
@@ -44,14 +58,33 @@ function EqManagerPaperDoll:Init()
     end)
 end
 
+function EqManagerPaperDoll:AttachCharacterFrames()
+    if PaperDollFrame and not self.paperDollHooked then
+        self.paperDollHooked = true
+        PaperDollFrame:HookScript("OnShow", function()
+            self:InjectButton()
+            self:UpdateHighlights()
+        end)
+    end
+    if CharacterFrame and not self.characterFrameHooked then
+        self.characterFrameHooked = true
+        CharacterFrame:HookScript("OnShow", function()
+            self:InjectButton()
+        end)
+    end
+    if PaperDollFrame and CharacterFrame and CharacterFrame:IsShown() then
+        self:InjectButton()
+    end
+end
+
 function EqManagerPaperDoll:InjectButton()
+    if not PaperDollFrame or not CharacterFrame then return end
     if not self.btn then
         self.btn = CreateFrame("Button", "EM_NewPaperDollButton", PaperDollFrame, "UIPanelButtonTemplate")
         self.btn:SetWidth(40)
         self.btn:SetHeight(20)
         self.btn:SetText("SETS")
         
-        self.btn:SetPoint("TOPRIGHT", PaperDollFrame, "TOPRIGHT", -45, -40)
         
         self.btn:SetScript("OnClick", function()
             local uiFrame = EqManager.UI.frame
@@ -63,6 +96,23 @@ function EqManagerPaperDoll:InjectButton()
                 EqManager.Options.ShowUI = true
             end
         end)
+    end
+    self.btn:ClearAllPoints()
+    local _, _, _, interfaceVersion = GetBuildInfo()
+    local isForever = interfaceVersion and math.floor(interfaceVersion / 100) == 160
+    if isForever and CharacterFrame then
+        self.btn:SetParent(PaperDollFrame)
+        local trinketSlot = CharacterTrinket1Slot or CharacterTrinket0Slot
+        if trinketSlot then
+            self.btn:SetPoint("TOP", trinketSlot, "BOTTOM", 0, -8)
+        else
+            self.btn:SetPoint("BOTTOMRIGHT", PaperDollFrame, "BOTTOMRIGHT", -20, 25)
+        end
+        self.btn:SetFrameStrata("DIALOG")
+        self.btn:SetFrameLevel(PaperDollFrame:GetFrameLevel() + 50)
+    else
+        self.btn:SetParent(PaperDollFrame)
+        self.btn:SetPoint("TOPRIGHT", PaperDollFrame, "TOPRIGHT", -45, -40)
     end
     self.btn:Show()
 

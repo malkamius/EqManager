@@ -43,7 +43,7 @@ function EqManagerHooks:RefreshBags()
         local bag = btn:GetParent() and btn:GetParent():GetID()
         local slot = btn:GetID()
         if bag and slot and type(bag) == "number" and type(slot) == "number" then
-            local getLink = GetContainerItemLink or (C_Container and C_Container.GetContainerItemLink)
+            local getLink = EqManager.API.GetContainerItemLink
             local link = getLink and getLink(bag, slot)
             
             if mode == "DISABLED" then
@@ -130,7 +130,7 @@ function EqManagerHooks:InstallBlizzardHooks()
         local slot = self:GetID()
         
         -- Compatibility wrapper for GetContainerItemLink
-        local getLink = GetContainerItemLink or (C_Container and C_Container.GetContainerItemLink)
+        local getLink = EqManager.API.GetContainerItemLink
         local link = getLink and getLink(bag, slot)
         
         local inSet = link and EqManager.Bags:IsItemInAnySet(link)
@@ -272,16 +272,19 @@ function EqManagerHooks:InstallBaganatorHooks()
 end
 
 function EqManagerHooks:InstallTooltipHooks()
+    if self.tooltipHooksInstalled then return end
+    self.tooltipHooksInstalled = true
     local function onTooltipSetItem(tooltip)
+        if tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip then return end
         if not EqManager.Options or not EqManager.Options.ShowTooltips then return end
         
         local name, link = tooltip:GetItem()
         if not link then return end
         
         -- Ensure it's an equippable item
-        if not IsEquippableItem(link) then return end
+        if not EqManager.API.IsEquippableItem(link) then return end
         
-        local _, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfo(link)
+        local _, _, _, _, _, _, _, _, itemEquipLoc = EqManager.API.GetItemInfo(link)
         -- Exclude non-character slots (Bags, Quivers) and empty locs
         if not itemEquipLoc or itemEquipLoc == "" or itemEquipLoc == "INVTYPE_BAG" or itemEquipLoc == "INVTYPE_QUIVER" then return end
         
@@ -296,10 +299,13 @@ function EqManagerHooks:InstallTooltipHooks()
         -- No need to call Show() as the engine handles it after the script runs
     end
 
-    if GameTooltip then
-        GameTooltip:HookScript("OnTooltipSetItem", onTooltipSetItem)
-    end
-    if ItemRefTooltip then
-        ItemRefTooltip:HookScript("OnTooltipSetItem", onTooltipSetItem)
+    if TooltipDataProcessor and Enum and Enum.TooltipDataType then
+        TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, onTooltipSetItem)
+    else
+        for _, tooltip in ipairs({ GameTooltip, ItemRefTooltip }) do
+            if tooltip:HasScript("OnTooltipSetItem") then
+                tooltip:HookScript("OnTooltipSetItem", onTooltipSetItem)
+            end
+        end
     end
 end

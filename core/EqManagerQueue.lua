@@ -30,7 +30,7 @@ function EqManagerQueue:SetCastingLockdown(state)
 end
 
 function EqManagerQueue:CanSwitch()
-    if self.inCombat then return false end
+    if self.inCombat or InCombatLockdown() then return false end
     if self.isCasting then return false end
     
     -- Game-state fallback check (in case events fire late)

@@ -191,8 +191,8 @@ function EqManagerEngine:EquipSet(setName, callback, source)
         end
     end
 
-    if finalHelmValue ~= nil and finalHelmValue then ShowHelm(true) end
-    if finalCloakValue ~= nil and finalCloakValue then ShowCloak(true) end
+    if finalHelmValue ~= nil and finalHelmValue then EqManager.API.ShowHelm(true) end
+    if finalCloakValue ~= nil and finalCloakValue then EqManager.API.ShowCloak(true) end
 
     self.targetState = finalSlots
     self.targetHelm = finalHelmValue
@@ -305,8 +305,8 @@ function EqManagerEngine:UnequipPartialSet(setName, callback, source)
     end
     print(msg .. "...")
 
-    if finalHelmValue ~= nil then ShowHelm(finalHelmValue) end
-    if finalCloakValue ~= nil then ShowCloak(finalCloakValue) end
+    if finalHelmValue ~= nil then EqManager.API.ShowHelm(finalHelmValue) end
+    if finalCloakValue ~= nil then EqManager.API.ShowCloak(finalCloakValue) end
 
     self.targetState = finalSlots
     self.targetHelm = finalHelmValue
@@ -497,7 +497,7 @@ function EqManagerEngine:ProcessNextTask()
             ClearCursor()
         end
     else
-        EquipItemByName(task.targetItem, task.slotId)
+        EqManager.API.EquipItemByName(task.targetItem, task.slotId)
     end
 
     local delay = EqManager.Options.SwapDelay or 0

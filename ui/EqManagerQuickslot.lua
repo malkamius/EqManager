@@ -112,7 +112,7 @@ function EqManagerQuickslot:GetOrCreateButton(parentBar, index, size)
 end
 
 function EqManagerQuickslot:SetupButton(btn, itemLink, targetSlotId)
-    local itemName, _, quality, _, _, _, _, _, _, itemIcon = C_Item.GetItemInfo(itemLink)
+    local itemName, _, quality, _, _, _, _, _, _, itemIcon = EqManager.API.GetItemInfo(itemLink)
     if not itemIcon then return end
 
     SetItemButtonTexture(btn, itemIcon)
@@ -130,22 +130,20 @@ function EqManagerQuickslot:SetupButton(btn, itemLink, targetSlotId)
     end)
 
     btn:SetScript("OnClick", function()
-        C_Item.EquipItemByName(itemName, targetSlotId)
+        EqManager.API.EquipItemByName(itemLink, targetSlotId)
         EqManagerQuickslot:CloseAll()
     end)
 end
 
 function EqManagerQuickslot:GetItemsForSlot(slotId)
     local results = {}
-    -- Search in modern C_Container
-    if not C_Container then return results end
 
-    for bag = 0, 4 do
-        local numSlots = C_Container.GetContainerNumSlots(bag)
+    for bag = 0, (NUM_BAG_SLOTS or 4) do
+        local numSlots = EqManager.API.GetContainerNumSlots(bag)
         for slot = 1, numSlots do
-            local itemLink = C_Container.GetContainerItemLink(bag, slot)
+            local itemLink = EqManager.API.GetContainerItemLink(bag, slot)
             if itemLink then
-                local _, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfo(itemLink)
+                local _, _, _, _, _, _, _, _, itemEquipLoc = EqManager.API.GetItemInfo(itemLink)
                 if itemEquipLoc then
                     local equipSlot = self:MapEquipLocToSlot(itemEquipLoc)
                     if equipSlot == slotId or

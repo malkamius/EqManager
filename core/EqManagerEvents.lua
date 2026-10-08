@@ -7,31 +7,32 @@ EqManagerEvents = CreateFrame("Frame")
 EqManager:RegisterModule("Events", EqManagerEvents)
 
 function EqManagerEvents:Init()
-    self:RegisterEvent("PLAYER_REGEN_DISABLED")
-    self:RegisterEvent("PLAYER_REGEN_ENABLED")
-    self:RegisterEvent("UNIT_SPELLCAST_START")
-    self:RegisterEvent("UNIT_SPELLCAST_STOP")
-    self:RegisterEvent("UNIT_SPELLCAST_FAILED")
-    self:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
-    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
-    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
-    self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
-    self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-    self:RegisterEvent("ZONE_CHANGED")
-    self:RegisterEvent("ZONE_CHANGED_INDOORS")
-    self:RegisterEvent("PLAYER_ENTERING_WORLD")
-    self:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
-    self:RegisterEvent("UPDATE_STEALTH")
-    self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
-    self:RegisterEvent("UNIT_AURA")
-    self:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
-    self:RegisterEvent("PLAYER_FLAGS_CHANGED")
-    self:RegisterEvent("SPELL_UPDATE_USABLE")
-    self:RegisterEvent("MIRROR_TIMER_START")
-    self:RegisterEvent("MIRROR_TIMER_STOP")
-    self:RegisterEvent("GROUP_ROSTER_UPDATE")
-    self:RegisterEvent("RAID_ROSTER_UPDATE")
+    EqManager.API.RegisterEvent(self, "PLAYER_REGEN_DISABLED")
+    EqManager.API.RegisterEvent(self, "PLAYER_REGEN_ENABLED")
+    EqManager.API.RegisterEvent(self, "UNIT_SPELLCAST_START")
+    EqManager.API.RegisterEvent(self, "UNIT_SPELLCAST_STOP")
+    EqManager.API.RegisterEvent(self, "UNIT_SPELLCAST_FAILED")
+    EqManager.API.RegisterEvent(self, "UNIT_SPELLCAST_INTERRUPTED")
+    EqManager.API.RegisterEvent(self, "UNIT_SPELLCAST_CHANNEL_START")
+    EqManager.API.RegisterEvent(self, "UNIT_SPELLCAST_CHANNEL_STOP")
+    EqManager.API.RegisterEvent(self, "UNIT_SPELLCAST_CHANNEL_UPDATE")
+    EqManager.API.RegisterEvent(self, "ZONE_CHANGED_NEW_AREA")
+    EqManager.API.RegisterEvent(self, "ZONE_CHANGED")
+    EqManager.API.RegisterEvent(self, "ZONE_CHANGED_INDOORS")
+    EqManager.API.RegisterEvent(self, "PLAYER_ENTERING_WORLD")
+    EqManager.API.RegisterEvent(self, "UPDATE_SHAPESHIFT_FORM")
+    EqManager.API.RegisterEvent(self, "UPDATE_STEALTH")
+    EqManager.API.RegisterEvent(self, "ACTIVE_TALENT_GROUP_CHANGED")
+    EqManager.API.RegisterEvent(self, "UNIT_AURA")
+    EqManager.API.RegisterEvent(self, "PLAYER_MOUNT_DISPLAY_CHANGED")
+    EqManager.API.RegisterEvent(self, "PLAYER_FLAGS_CHANGED")
+    EqManager.API.RegisterEvent(self, "SPELL_UPDATE_USABLE")
+    EqManager.API.RegisterEvent(self, "MIRROR_TIMER_START")
+    EqManager.API.RegisterEvent(self, "MIRROR_TIMER_STOP")
+    EqManager.API.RegisterEvent(self, "GROUP_ROSTER_UPDATE")
+    EqManager.API.RegisterEvent(self, "RAID_ROSTER_UPDATE")
     
+    EqManager.API.RegisterEvent(self, "PLAYER_SPECIALIZATION_CHANGED")
     self.lastMountState = IsMounted() and not UnitOnTaxi("player")
     self.lastFormID = GetShapeshiftFormID()
     self.lastPvPState = UnitIsPVP("player")
@@ -118,12 +119,12 @@ function EqManagerEvents:EvaluateBindings(eventType, eventSubType)
             local match = true
             if ev.subType and ev.subType ~= "" then
                 local subMatch = false
-                if string.find(string.lower(eventSubType), string.lower(ev.subType), 1, true) then
+                if string.find(string.lower(eventSubType or ""), string.lower(ev.subType), 1, true) then
                     subMatch = true
                 elseif eventType == "SPEC_CHANGED" then
                     -- Special case for spec names (Primary/Secondary)
                     local specName = (eventSubType == "1") and "Primary" or (eventSubType == "2" and "Secondary" or eventSubType)
-                    if string.lower(ev.subType) == string.lower(specName) then
+                    if string.lower(ev.subType) == string.lower(specName or "") then
                         subMatch = true
                     end
                 end
@@ -226,9 +227,12 @@ function EqManagerEvents:OnSystemEvent(event, arg1, ...)
     elseif event == "UNIT_AURA" or event == "PLAYER_MOUNT_DISPLAY_CHANGED" then
         if event == "UNIT_AURA" and arg1 ~= "player" then return end
         self:CheckMountState()
-    elseif event == "ACTIVE_TALENT_GROUP_CHANGED" then
+    elseif event == "ACTIVE_TALENT_GROUP_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED" then
+        if event == "PLAYER_SPECIALIZATION_CHANGED" and arg1 ~= "player" then return end
         local currentSpec
-        if C_SpecializationInfo and C_SpecializationInfo.GetActiveSpecGroup then
+        if event == "PLAYER_SPECIALIZATION_CHANGED" and GetSpecialization then
+            currentSpec = GetSpecialization()
+        elseif C_SpecializationInfo and C_SpecializationInfo.GetActiveSpecGroup then
             currentSpec = C_SpecializationInfo.GetActiveSpecGroup()
         elseif GetActiveTalentGroup then
             currentSpec = GetActiveTalentGroup()

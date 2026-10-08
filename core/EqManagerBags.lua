@@ -123,10 +123,10 @@ function EqManagerBags:GetItemLocationForSlot(targetLink, slotId)
     end
 
     -- 2. Check player's immediate inventory ONLY (Backpack=0, Bags 1-4)
-    local getNumSlots = (C_Container and C_Container.GetContainerNumSlots) or GetContainerNumSlots
-    local getLink = (C_Container and C_Container.GetContainerItemLink) or GetContainerItemLink
+    local getNumSlots = EqManager.API.GetContainerNumSlots
+    local getLink = EqManager.API.GetContainerItemLink
     
-    for bag = 0, 4 do
+    for bag = 0, (NUM_BAG_SLOTS or 4) do
         local slots = getNumSlots(bag)
         if slots and slots > 0 then
             for slot = 1, slots do
@@ -171,10 +171,10 @@ function EqManagerBags:GetInventoryMap()
     end
     
     -- 2. Scan bags (0-4)
-    local getNumSlots = (C_Container and C_Container.GetContainerNumSlots) or GetContainerNumSlots
-    local getLink = (C_Container and C_Container.GetContainerItemLink) or GetContainerItemLink
+    local getNumSlots = EqManager.API.GetContainerNumSlots
+    local getLink = EqManager.API.GetContainerItemLink
     
-    for bagId = 0, 4 do
+    for bagId = 0, (NUM_BAG_SLOTS or 4) do
         local numSlots = getNumSlots(bagId)
         if numSlots then
             for slotId = 1, numSlots do

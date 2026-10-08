@@ -310,7 +310,7 @@ function EqManagerEventDialog:Init()
                 if GetNumShapeshiftForms and GetShapeshiftFormInfo then
                     local numStances = GetNumShapeshiftForms()
                     for i = 1, numStances do
-                        local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(i)
+                        local texture, name, isActive, isCastable, spellID = EqManager.API.GetShapeshiftFormInfo(i)
                         if name then
                             local formID = EqManager:GetFormIDFromStanceInfo(name, texture, spellID)
                             if formID then
