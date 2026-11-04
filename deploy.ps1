@@ -37,6 +37,8 @@ if (Test-Path -LiteralPath $wowPathsFile) {
 if ($wowAddonPaths.Count -eq 0) {
     $wowRoot = "C:\Program Files (x86)\World of Warcraft"
     $wowAddonPaths = @(
+        "G:\Battle.net\World of Warcraft\_forever_\Interface\AddOns",
+        (Join-Path $wowRoot "_forever_\Interface\AddOns"),
         (Join-Path $wowRoot "_anniversary_\Interface\AddOns"),
         (Join-Path $wowRoot "_classic_beta_\Interface\AddOns")
     )
