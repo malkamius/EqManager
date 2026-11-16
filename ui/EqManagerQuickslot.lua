@@ -86,6 +86,7 @@ function EqManagerQuickslot:OpenQuickBar(slotId, parentSlot)
 
         for i, itemLink in ipairs(items) do
             local btn = self:GetOrCreateButton(bar, i, buttonSize)
+            btn:ClearAllPoints()
             btn:SetPoint("TOPLEFT", bar, "TOPLEFT", padding, -((i - 1) * (buttonSize + padding)) - padding)
             self:SetupButton(btn, itemLink, slotId)
         end
@@ -95,6 +96,7 @@ function EqManagerQuickslot:OpenQuickBar(slotId, parentSlot)
 
         for i, itemLink in ipairs(items) do
             local btn = self:GetOrCreateButton(bar, i, buttonSize)
+            btn:ClearAllPoints()
             btn:SetPoint("TOPLEFT", bar, "TOPLEFT", ((i - 1) * (buttonSize + padding)) + padding, -padding)
             self:SetupButton(btn, itemLink, slotId)
         end
@@ -104,7 +106,25 @@ function EqManagerQuickslot:OpenQuickBar(slotId, parentSlot)
 end
 
 function EqManagerQuickslot:GetOrCreateButton(parentBar, index, size)
-    parentBar.buttons[index] = parentBar.buttons[index] or CreateFrame("Button", nil, parentBar, "ItemButtonTemplate")
+    if not parentBar.buttons[index] then
+        local name = parentBar:GetName() and (parentBar:GetName() .. "_Btn" .. index) or nil
+        local btn
+        local success, frame = pcall(CreateFrame, "ItemButton", name, parentBar)
+        if success and frame then
+            btn = frame
+        else
+            success, frame = pcall(CreateFrame, "Button", name, parentBar, "ItemButtonTemplate")
+            if success and frame then
+                btn = frame
+            else
+                btn = CreateFrame("Button", name, parentBar)
+                btn.icon = btn:CreateTexture(nil, "BORDER")
+                btn.icon:SetAllPoints()
+            end
+        end
+        parentBar.buttons[index] = btn
+    end
+
     local btn = parentBar.buttons[index]
     btn:SetSize(size, size)
     btn:Show()
@@ -115,8 +135,16 @@ function EqManagerQuickslot:SetupButton(btn, itemLink, targetSlotId)
     local itemName, _, quality, _, _, _, _, _, _, itemIcon = EqManager.API.GetItemInfo(itemLink)
     if not itemIcon then return end
 
-    SetItemButtonTexture(btn, itemIcon)
-    SetItemButtonQuality(btn, quality, itemLink)
+    if SetItemButtonTexture then
+        SetItemButtonTexture(btn, itemIcon)
+    elseif btn.icon then
+        btn.icon:SetTexture(itemIcon)
+        btn.icon:Show()
+    end
+
+    if SetItemButtonQuality then
+        SetItemButtonQuality(btn, quality, itemLink)
+    end
 
     btn:SetScript("OnEnter", function(self)
         if GameTooltip then

@@ -2,7 +2,7 @@
 ## Title: EqManager
 ## Notes: Quick switch your gear sets.
 ## Author: Gemini
-## Version: 1.17.5
+## Version: 1.17.6
 ## SavedVariables: EM_DATA, EM_AUX
 ## OptionalDeps: Baganator, AdiBags
 

@@ -1281,7 +1281,7 @@ function EqManagerUI:CreateSetEntry(index)
             for _, itemRef in ipairs(self.missingItems) do
                 local name, link, quality, _, _, _, _, _, _, texture = EqManager.API.GetItemInfo(itemRef)
                 if name then
-                    local r, g, b = GetItemQualityColor(quality)
+                    local r, g, b = EqManager.API.GetItemQualityColor(quality)
                     local icon = "|T" .. (texture or "Interface\\Icons\\INV_Misc_QuestionMark") .. ":16:16:0:0:64:64:4:60:4:60|t"
                     GameTooltip:AddLine(icon .. " " .. name, r, g, b)
                 else

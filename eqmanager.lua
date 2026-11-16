@@ -13,6 +13,18 @@ function API.GetItemInfo(item)
     local fn = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     if fn then return fn(item) end
 end
+function API.GetItemQualityColor(quality)
+    local fn = (C_Item and C_Item.GetItemQualityColor) or GetItemQualityColor
+    if fn and quality ~= nil then
+        local r, g, b, hex = fn(quality)
+        if r then return r, g, b, hex end
+    end
+    local color = ITEM_QUALITY_COLORS and quality ~= nil and ITEM_QUALITY_COLORS[quality]
+    if color then
+        return color.r, color.g, color.b, color.hex
+    end
+    return 1, 1, 1, "ffffffff"
+end
 function API.IsEquippableItem(item)
     local fn = (C_Item and C_Item.IsEquippableItem) or IsEquippableItem
     return fn and fn(item) or false
