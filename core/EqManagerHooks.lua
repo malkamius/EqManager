@@ -6,6 +6,38 @@
 EqManagerHooks = {}
 EqManager:RegisterModule("Hooks", EqManagerHooks)
 
+local baganatorButtons = setmetatable({}, { __mode = "k" })
+
+local function ApplyBaganatorDimming(btn)
+    if not btn or not btn.BGR then return end
+    baganatorButtons[btn] = true
+
+    local mode = EqManager.Options.BagDimmingMode or "DISABLED"
+    if mode == "DISABLED" then
+        if btn.emDimmed then
+            btn:SetAlpha(1.0)
+            btn.emDimmed = false
+        end
+        return
+    end
+
+    if btn.BGR.itemLink then
+        local inSet = EqManager.Bags:IsItemInAnySet(btn.BGR.itemLink)
+        local shouldDim = (mode == "NON_SET" and not inSet) or (mode == "SET" and inSet)
+
+        if shouldDim then
+            btn:SetAlpha(0.3)
+            btn.emDimmed = true
+        else
+            btn:SetAlpha(1.0)
+            btn.emDimmed = false
+        end
+    elseif btn.emDimmed then
+        btn:SetAlpha(1.0)
+        btn.emDimmed = false
+    end
+end
+
 function EqManagerHooks:Init()
     self:InstallBlizzardHooks()
     self:InstallAdiBagsHooks()
@@ -22,20 +54,7 @@ function EqManagerHooks:RefreshBags()
         
         -- Check if it's a Baganator button
         if btn.BGR then
-            if mode == "DISABLED" then
-                if btn.emDimmed then btn:SetAlpha(1.0); btn.emDimmed = false end
-            elseif btn.BGR.itemLink then
-                local inSet = EqManager.Bags:IsItemInAnySet(btn.BGR.itemLink)
-                local shouldDim = (mode == "NON_SET" and not inSet) or (mode == "SET" and inSet)
-                
-                if shouldDim then
-                    btn:SetAlpha(0.3); btn.emDimmed = true
-                else
-                    btn:SetAlpha(1.0); btn.emDimmed = false
-                end
-            else
-                if btn.emDimmed then btn:SetAlpha(1.0); btn.emDimmed = false end
-            end
+            ApplyBaganatorDimming(btn)
             return
         end
 
@@ -92,15 +111,42 @@ function EqManagerHooks:RefreshBags()
          end
     end
 
-    -- 2. Iterate Baganator Buttons (Brute force via naming pattern in Pools.lua)
-    -- Baganator uses "BGRCachedItemButton" and "BGRLiveItemButton" + Counter
+    -- 2. Iterate Baganator Buttons
+    -- Retail and Classic Forever use unnamed CreateFramePool buttons, so iterate tracked instances
+    -- in addition to the named BGR* buttons used on non-Forever Classic clients.
+    local bgrCount, bgrDimmed = 0, 0
+    for btn in pairs(baganatorButtons) do
+        bgrCount = bgrCount + 1
+        applyToButton(btn)
+        if btn.emDimmed then bgrDimmed = bgrDimmed + 1 end
+    end
     for i = 1, 1000 do
         local btn = _G["BGRCachedItemButton"..i]
-        if btn then if btn:IsVisible() then applyToButton(btn) end else break end
+        if btn then
+            if not baganatorButtons[btn] and btn:IsVisible() then
+                bgrCount = bgrCount + 1
+                applyToButton(btn)
+                if btn.emDimmed then bgrDimmed = bgrDimmed + 1 end
+            end
+        else
+            break
+        end
     end
     for i = 1, 1000 do
         local btn = _G["BGRLiveItemButton"..i]
-        if btn then if btn:IsVisible() then applyToButton(btn) end else break end
+        if btn then
+            if not baganatorButtons[btn] and btn:IsVisible() then
+                bgrCount = bgrCount + 1
+                applyToButton(btn)
+                if btn.emDimmed then bgrDimmed = bgrDimmed + 1 end
+            end
+        else
+            break
+        end
+    end
+    if EqManager.Options.Debug then
+        print(string.format("|cFF00FFFFEqManager DEBUG|r: RefreshBags mode=%s, BaganatorButtons=%d, Dimmed=%d, HooksInstalled=%s",
+            tostring(EqManager.Options.BagDimmingMode), bgrCount, bgrDimmed, tostring(self.baganatorHooksInstalled)))
     end
 
     -- 3. AdiBags Refresh (Messages are usually enough here as it rebuilds)
@@ -203,71 +249,89 @@ function EqManagerHooks:InstallAdiBagsHooks()
 end
 
 function EqManagerHooks:InstallBaganatorHooks()
-    local function applyDimming(self)
-        local mode = EqManager.Options.BagDimmingMode or "DISABLED"
-        if mode == "DISABLED" then 
-            if self.emDimmed then
-                self:SetAlpha(1.0)
-                self.emDimmed = false
-            end
-            return 
+    if self.baganatorHooksInstalled then return end
+
+    local function isContainerBagTag(tags)
+        if not tags then return false end
+        for _, tag in ipairs(tags) do
+            if tag == "containerBag" then return true end
         end
-        
-        if self.BGR and self.BGR.itemLink then
-            local inSet = EqManager.Bags:IsItemInAnySet(self.BGR.itemLink)
-            local shouldDim = (mode == "NON_SET" and not inSet) or (mode == "SET" and inSet)
-            
-            if shouldDim then
-                self:SetAlpha(0.3)
-                self.emDimmed = true
-            else
-                self:SetAlpha(1.0)
-                self.emDimmed = false
-            end
-        else
-            if self.emDimmed then
-                self:SetAlpha(1.0)
-                self.emDimmed = false
-            end
+        return false
+    end
+
+    local function hookItemButton(details)
+        if not details or details.regionType ~= "ItemButton" then return end
+        if isContainerBagTag(details.tags) then return end
+
+        local button = details.region
+        if not button or button.emBaganatorHooked or not button.SetItemDetails then return end
+
+        button.emBaganatorHooked = true
+        baganatorButtons[button] = true
+        hooksecurefunc(button, "SetItemDetails", ApplyBaganatorDimming)
+        if button.BGR then
+            ApplyBaganatorDimming(button)
         end
     end
 
-    if Baganator and Baganator.API and Baganator.API.RegisterCornerWidget then
-        Baganator.API.RegisterCornerWidget("EqManagerDimming", "EqManager Dimming", 
-            function(cornerFrame, item)
-                return false
-            end,
-            function(itemButton)
-                if itemButton.SetItemDetails then
-                    hooksecurefunc(itemButton, "SetItemDetails", applyDimming)
-                end
-                -- Create a hidden dummy texture to satisfy RegisterCornerWidget's return expectation
-                local dummy = itemButton:CreateTexture(nil, "OVERLAY")
-                dummy:Hide()
-                return dummy
-            end,
-            { default_position = "top_left" }
-        )
-    else
-        -- Fallback to the old mixin hooks if API is not available
-        local function safeHookMixin(mixin, methodName, hookFunc)
-            if mixin and mixin[methodName] then
-                local isFrozen = false
-                if table.isfrozen then
-                    isFrozen = table.isfrozen(mixin)
-                end
-                if not isFrozen then
-                    hooksecurefunc(mixin, methodName, hookFunc)
-                end
+    local function safeHookMixin(mixin, methodName, hookFunc)
+        if mixin and mixin[methodName] then
+            local isFrozen = table.isfrozen and table.isfrozen(mixin)
+            if not isFrozen then
+                hooksecurefunc(mixin, methodName, hookFunc)
+                return true
             end
         end
+        return false
+    end
 
-        safeHookMixin(BaganatorClassicLiveContainerItemButtonMixin, "SetItemDetails", applyDimming)
-        safeHookMixin(BaganatorClassicCachedItemButtonMixin, "SetItemDetails", applyDimming)
-        safeHookMixin(BaganatorClassicLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
-        safeHookMixin(BaganatorRetailLiveContainerItemButtonMixin, "SetItemDetails", applyDimming)
-        safeHookMixin(BaganatorRetailCachedItemButtonMixin, "SetItemDetails", applyDimming)
-        safeHookMixin(BaganatorRetailLiveGuildItemButtonMixin, "SetItemDetails", applyDimming)
+    local function installHooks()
+        if self.baganatorHooksInstalled then return end
+
+        if Baganator and Baganator.API and Baganator.API.Skins and Baganator.API.Skins.RegisterListener then
+            Baganator.API.Skins.RegisterListener(hookItemButton)
+            if Baganator.API.Skins.GetAllFrames then
+                for _, details in ipairs(Baganator.API.Skins.GetAllFrames()) do
+                    hookItemButton(details)
+                end
+            end
+            self.baganatorHooksInstalled = true
+            return
+        end
+
+        -- Fallback for older Baganator versions without Skins.RegisterListener
+        local hooked = false
+        local mixinNames = {
+            "BaganatorClassicLiveContainerItemButtonMixin",
+            "BaganatorClassicCachedItemButtonMixin",
+            "BaganatorClassicLiveGuildItemButtonMixin",
+            "BaganatorRetailLiveContainerItemButtonMixin",
+            "BaganatorRetailCachedItemButtonMixin",
+            "BaganatorRetailLiveGuildItemButtonMixin",
+        }
+        for _, name in ipairs(mixinNames) do
+            if safeHookMixin(_G[name], "SetItemDetails", ApplyBaganatorDimming) then
+                hooked = true
+            end
+        end
+        if hooked then
+            self.baganatorHooksInstalled = true
+        end
+    end
+
+    installHooks()
+
+    if not self.baganatorHooksInstalled then
+        local loader = CreateFrame("Frame")
+        loader:RegisterEvent("ADDON_LOADED")
+        loader:SetScript("OnEvent", function(f, event, name)
+            if name == "Baganator" then
+                installHooks()
+                if self.baganatorHooksInstalled then
+                    f:UnregisterEvent("ADDON_LOADED")
+                end
+            end
+        end)
     end
 end
 
