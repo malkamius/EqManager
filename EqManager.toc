@@ -3,6 +3,7 @@
 ## Notes: Quick switch your gear sets.
 ## Author: Gemini
 ## Version: 1.17.6
+## X-Curse-Project-ID: 1519879
 ## SavedVariables: EM_DATA, EM_AUX
 ## OptionalDeps: Baganator, AdiBags
 
