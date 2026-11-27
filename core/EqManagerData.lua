@@ -6,21 +6,127 @@
 EqManagerData = {}
 EqManager:RegisterModule("Data", EqManagerData)
 
+local function DeepCopy(val, seen)
+    if type(val) ~= "table" then return val end
+    seen = seen or {}
+    if seen[val] then return seen[val] end
+    local copy = {}
+    seen[val] = copy
+    for k, v in pairs(val) do
+        copy[DeepCopy(k, seen)] = DeepCopy(v, seen)
+    end
+    return copy
+end
+
+local function ExtractItemId(link)
+    if not link or link == "" or link == "EMPTY" or link == "VALUE_NONE" or link == "$NONE" then
+        return nil
+    end
+    local id = tonumber(link)
+    if id then return id end
+    if type(link) == "string" then
+        local itemId = link:match("item:(%d+)")
+        if itemId then return tonumber(itemId) end
+    end
+    return nil
+end
+
+local function GetCurrentInventoryItemIds()
+    local equippedIds = {}
+    local ownedIds = {}
+    for slotId = 1, 19 do
+        local link = GetInventoryItemLink and GetInventoryItemLink("player", slotId)
+        local id = ExtractItemId(link)
+        if id then
+            equippedIds[id] = true
+            ownedIds[id] = true
+        end
+    end
+
+    local getNumSlots = EqManager.API and EqManager.API.GetContainerNumSlots
+    local getLink = EqManager.API and EqManager.API.GetContainerItemLink
+    if getNumSlots and getLink then
+        for bag = 0, (NUM_BAG_SLOTS or 4) do
+            local numSlots = getNumSlots(bag)
+            if numSlots and numSlots > 0 then
+                for slot = 1, numSlots do
+                    local link = getLink(bag, slot)
+                    local id = ExtractItemId(link)
+                    if id then
+                        ownedIds[id] = true
+                    end
+                end
+            end
+        end
+    end
+    return equippedIds, ownedIds
+end
+
+local function ScoreLegacyStoreMatch(legacyStore, equippedIds, ownedIds)
+    if type(legacyStore) ~= "table" then return false, 0, 0 end
+    local sets = legacyStore.Sets or legacyStore["FIELD_SETS"]
+    if type(sets) ~= "table" or next(sets) == nil then
+        return false, 0, 0
+    end
+
+    local uniqueItems = {}
+    local totalUnique = 0
+    local totalOwned = 0
+    local totalEquipped = 0
+    local bestSetRatio = 0
+
+    for _, setData in pairs(sets) do
+        if type(setData) == "table" then
+            local slots = setData.slots or setData["FIELD_SLOTS"]
+            if type(slots) == "table" then
+                local setUnique = {}
+                local setTotal = 0
+                local setOwned = 0
+                for _, itemString in pairs(slots) do
+                    local id = ExtractItemId(itemString)
+                    if id then
+                        if not setUnique[id] then
+                            setUnique[id] = true
+                            setTotal = setTotal + 1
+                            if ownedIds[id] then setOwned = setOwned + 1 end
+                        end
+                        if not uniqueItems[id] then
+                            uniqueItems[id] = true
+                            totalUnique = totalUnique + 1
+                            if ownedIds[id] then totalOwned = totalOwned + 1 end
+                            if equippedIds[id] then totalEquipped = totalEquipped + 1 end
+                        end
+                    end
+                end
+                if setTotal > 0 then
+                    local ratio = setOwned / setTotal
+                    if ratio > bestSetRatio then bestSetRatio = ratio end
+                end
+            end
+        end
+    end
+
+    if totalUnique == 0 then
+        return false, 0, 0
+    end
+
+    local isMatch = (totalEquipped >= 2)
+        or (totalUnique == 1 and totalOwned == 1)
+        or (totalOwned >= 3 and bestSetRatio >= 0.3)
+
+    return isMatch, totalOwned, totalEquipped
+end
+
 function EqManagerData:Init()
-    local realm = GetRealmName() or "Unknown"
-    local char = UnitName("player") or "Unknown"
+    EM_CHAR_DATA = EM_CHAR_DATA or {}
 
-    EM_DATA = EM_DATA or {}
-    EM_DATA[realm] = EM_DATA[realm] or {}
-    EM_DATA[realm][char] = EM_DATA[realm][char] or {}
-
-    local charStore = EM_DATA[realm][char]
+    local charStore = EM_CHAR_DATA
     self.db = charStore
 
     charStore.Options = charStore.Options or {}
     self:MigrateOptions()
 
-    self:PerformMigrations(realm, char)
+    self:PerformMigrations()
 
     charStore.Sets = charStore.Sets or {}
     charStore.Events = charStore.Events or {}
@@ -35,6 +141,141 @@ function EqManagerData:Init()
 
     -- Expose character-specific options as EqManager.Options for easy access
     EqManager.Options = charStore.Options
+end
+
+function EqManagerData:TryMigrateFromGlobal()
+    local charStore = self.db
+    if not charStore or charStore.MigratedFromGlobal then return false end
+
+    -- If this character already has per-character sets or events, do not overwrite them
+    if (charStore.Sets and next(charStore.Sets) ~= nil) or (charStore.Events and next(charStore.Events) ~= nil) then
+        charStore.MigratedFromGlobal = true
+        return false
+    end
+
+    if type(EM_DATA) ~= "table" then
+        charStore.MigratedFromGlobal = true
+        return false
+    end
+
+    local realm = GetRealmName and GetRealmName() or ""
+    local char = UnitName and UnitName("player") or ""
+    if char == "" then return false end
+
+    local playerGUID = UnitGUID and UnitGUID("player") or nil
+
+    -- Collect candidate legacy buckets for this character name:
+    -- exact realm, empty-string realm (from early ADDON_LOADED), and "Unknown" fallback.
+    local candidates = {}
+    local seenStores = {}
+    local function addCandidate(realmKey, priority)
+        if realmKey ~= nil and type(EM_DATA[realmKey]) == "table" and type(EM_DATA[realmKey][char]) == "table" then
+            local store = EM_DATA[realmKey][char]
+            if not seenStores[store] then
+                seenStores[store] = true
+                if not store._migratedToGUID or store._migratedToGUID == playerGUID then
+                    table.insert(candidates, { store = store, priority = priority })
+                end
+            end
+        end
+    end
+
+    if realm ~= "" then addCandidate(realm, 2) end
+    addCandidate("", 1)
+    addCandidate("Unknown", 0)
+
+    if #candidates == 0 then
+        charStore.MigratedFromGlobal = true
+        return false
+    end
+
+    -- Verify ownership against currently equipped/bag items so characters that share
+    -- a UnitName("player") never inherit another character's sets.
+    local equippedIds, ownedIds = GetCurrentInventoryItemIds()
+    if next(ownedIds) == nil then
+        -- Inventory not yet populated; wait for a future login/reload rather than misclassifying
+        return false
+    end
+
+    local bestCandidate = nil
+    local bestScore = -1
+    local bestPriority = -1
+
+    for _, cand in ipairs(candidates) do
+        local isMatch, totalOwned, totalEquipped = ScoreLegacyStoreMatch(cand.store, equippedIds, ownedIds)
+        if isMatch then
+            local score = totalOwned * 10 + totalEquipped
+            if score > bestScore or (score == bestScore and cand.priority > bestPriority) then
+                bestCandidate = cand.store
+                bestScore = score
+                bestPriority = cand.priority
+            end
+        end
+    end
+
+    if not bestCandidate then
+        charStore.MigratedFromGlobal = true
+        return false
+    end
+
+    -- Deep-copy legacy character data into per-character storage
+    if type(bestCandidate.Sets) == "table" then
+        charStore.Sets = DeepCopy(bestCandidate.Sets)
+    end
+    if type(bestCandidate["FIELD_SETS"]) == "table" then
+        charStore["FIELD_SETS"] = DeepCopy(bestCandidate["FIELD_SETS"])
+    end
+    if type(bestCandidate.Events) == "table" then
+        charStore.Events = DeepCopy(bestCandidate.Events)
+    end
+    if type(bestCandidate["FIELD_EVENTS"]) == "table" then
+        charStore["FIELD_EVENTS"] = DeepCopy(bestCandidate["FIELD_EVENTS"])
+    end
+    if type(bestCandidate.SetOrder) == "table" then
+        charStore.SetOrder = DeepCopy(bestCandidate.SetOrder)
+    end
+    if type(bestCandidate.ActivePartialSets) == "table" then
+        charStore.ActivePartialSets = DeepCopy(bestCandidate.ActivePartialSets)
+    end
+    if bestCandidate.CurrentSet ~= nil then
+        charStore.CurrentSet = bestCandidate.CurrentSet
+    end
+    if bestCandidate.BaseFullSet ~= nil then
+        charStore.BaseFullSet = bestCandidate.BaseFullSet
+    end
+    if bestCandidate.LastAFKState ~= nil then
+        charStore.LastAFKState = bestCandidate.LastAFKState
+    end
+    if type(bestCandidate.Options) == "table" then
+        charStore.Options = charStore.Options or {}
+        for k, v in pairs(bestCandidate.Options) do
+            charStore.Options[k] = DeepCopy(v)
+        end
+        EqManager.Options = charStore.Options
+    end
+
+    self:MigrateOptions()
+    self:PerformMigrations()
+
+    if playerGUID then
+        bestCandidate._migratedToGUID = playerGUID
+    end
+    charStore.MigratedFromGlobal = true
+
+    print("|cFF00FFFFEqManager|r: Migrated character sets to per-character storage.")
+
+    if EqManager.Bags then
+        EqManager.Bags:RefreshCache()
+        if EqManager.Hooks then EqManager.Hooks:RefreshBags() end
+    end
+    if EqManager.UI and EqManager.UI.frame and EqManager.UI.frame:IsVisible() then
+        EqManager.UI:RefreshSetsList()
+    end
+    if EqManager.PaperDoll then
+        EqManager.PaperDoll:UpdateHighlights()
+    end
+
+    return true
 end
 
 function EqManagerData:MigrateOptions()
@@ -72,7 +313,11 @@ function EqManagerData:MigrateOptions()
 end
 
 function EqManagerData:PerformMigrations(realm, char)
-    local charStore = EM_DATA[realm][char]
+    local charStore = self.db
+    if not charStore then return end
+
+    realm = realm or (GetRealmName and GetRealmName()) or ""
+    char = char or (UnitName and UnitName("player")) or ""
 
     -- 1. Import Legacy EqManager / GearEquipper EqManager sets (FIELD_SETS)
     if charStore["FIELD_SETS"] then
@@ -118,7 +363,7 @@ function EqManagerData:PerformMigrations(realm, char)
 
     -- 2. Import external GearQuipper sets
     -- Often GearQuipper stores per character directly in gearquipper_sets or GearquipperDB
-    if _G["gearquipper_sets"] then
+    if realm ~= "" and char ~= "" and _G["gearquipper_sets"] then
         print("|cFF00FFFFEqManager|r: Importing GearQuipper generic sets...")
         charStore.Sets = charStore.Sets or {}
         -- Detect structure: [realm][char] or flat [setName]
@@ -139,7 +384,7 @@ function EqManagerData:PerformMigrations(realm, char)
         end
         -- We won't nil gearquipper_sets in case the user still tests both mods
     end
-    if _G["GQ_DATA"] and _G["GQ_DATA"][realm] and _G["GQ_DATA"][realm][char] then
+    if realm ~= "" and char ~= "" and _G["GQ_DATA"] and _G["GQ_DATA"][realm] and _G["GQ_DATA"][realm][char] then
         print("|cFF00FFFFEqManager|r: Importing GQ_DATA generic sets...")
         charStore.Sets = charStore.Sets or {}
         local gqSets = _G["GQ_DATA"][realm][char]

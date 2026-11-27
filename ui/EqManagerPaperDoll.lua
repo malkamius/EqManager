@@ -100,13 +100,13 @@ function EqManagerPaperDoll:InjectButton()
     self.btn:ClearAllPoints()
     local _, _, _, interfaceVersion = GetBuildInfo()
     local isForever = interfaceVersion and math.floor(interfaceVersion / 100) == 160
-    if isForever and CharacterFrame then
+    if isForever then
         self.btn:SetParent(PaperDollFrame)
-        local trinketSlot = CharacterTrinket1Slot or CharacterTrinket0Slot
-        if trinketSlot then
-            self.btn:SetPoint("TOP", trinketSlot, "BOTTOM", 0, -8)
+        local closeButton = CharacterFrame.CloseButton or CharacterFrameCloseButton
+        if closeButton then
+            self.btn:SetPoint("RIGHT", closeButton, "LEFT", -4, 0)
         else
-            self.btn:SetPoint("BOTTOMRIGHT", PaperDollFrame, "BOTTOMRIGHT", -20, 25)
+            self.btn:SetPoint("TOPRIGHT", CharacterFrame, "TOPRIGHT", -40, -6)
         end
         self.btn:SetFrameStrata("DIALOG")
         self.btn:SetFrameLevel(PaperDollFrame:GetFrameLevel() + 50)

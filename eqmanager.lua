@@ -237,6 +237,7 @@ local function OnEvent(self, event, arg1)
         -- Initialize SavedVariables schema
         EM_DATA = EM_DATA or {}
         EM_AUX = EM_AUX or {}
+        EM_CHAR_DATA = EM_CHAR_DATA or {}
 
         -- Call internal Init on Data first
         if self.modules["Data"] and type(self.modules["Data"].Init) == "function" then
@@ -260,6 +261,10 @@ local function OnEvent(self, event, arg1)
         self:UnregisterEvent("ADDON_LOADED")
         self:RegisterEvent("PLAYER_ENTERING_WORLD")
     elseif event == "PLAYER_ENTERING_WORLD" then
+        -- Migrate legacy global EM_DATA into per-character EM_CHAR_DATA once player/inventory APIs are ready
+        if self.modules["Data"] and type(self.modules["Data"].TryMigrateFromGlobal) == "function" then
+            self.modules["Data"]:TryMigrateFromGlobal()
+        end
         -- Fallback: disable GQ after both addons and saved variables are fully loaded
         if EqManagerGQImport and not EqManagerGQImport.gqDisabled and EqManagerGQImport:IsGQAvailable() then
             EqManagerGQImport:DisableGearQuipper()
